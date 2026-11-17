@@ -8,7 +8,7 @@
 // Never paste the "service_role" key here.
 // ---------------------------------------------------------------
 window.IIC_CONFIG = {
-  SUPABASE_URL: "https://YOUR-PROJECT-ID.supabase.co",
-  SUPABASE_ANON_KEY: "YOUR-ANON-PUBLIC-KEY",
+  SUPABASE_URL: "https://cjepzeuayihmrjgbhizo.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqZXB6ZXVheWlobXJqZ2JoaXpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MjEwMDMsImV4cCI6MjEwODk5NzAwM30.1DuinHB_KDvbTgkH8T9ysLNwB7WvVwBFUGxDTNDuRaA",
   BUCKET: "iic-reports"
 };
