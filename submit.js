@@ -86,7 +86,7 @@
   /* ---------- file picker ---------- */
   function fileInfo() {
     if (picked) {
-      $("s_fileInfo").innerHTML = "Ready to upload: <b>" + esc(picked.name) + "</b> (" + IIC.fmtSize(picked.size) + ")" + (fmtNote ? '<span class="fmt-note">' + fmtNote + "</span>" : "");
+      $("s_fileInfo").innerHTML = "Ready to upload: <b>" + esc(picked.name) + "</b> (" + IIC.fmtSize(picked.size) + ")";
       $("s_clear").hidden = false;
     }
     else { $("s_fileInfo").textContent = "No file chosen."; $("s_clear").hidden = true; }
@@ -99,7 +99,7 @@
     picked = f; fmtNote = ""; wasFormatted = false; msg("", ""); fileInfo();
     // AI formatting agent: apply the CII&E report style (Times New Roman 16/14/12, colours, logos) before upload
     if (window.IICFormat && window.JSZip) {
-      $("s_fileInfo").innerHTML = "Formatting <b>" + esc(f.name) + "</b> to the CII&amp;E report style…";
+      $("s_fileInfo").innerHTML = "Preparing <b>" + esc(f.name) + "</b>…";
       try {
         const logos = await reportLogos();
         const { blob, info } = await IICFormat.format(f, logos);
