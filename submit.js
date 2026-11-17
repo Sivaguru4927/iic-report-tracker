@@ -106,10 +106,8 @@
         if (picked !== f) return;                                  // user picked another file meanwhile
         if (blob.size > IIC.MAX_BYTES) throw new Error("formatted file over 5 MB");
         picked = new File([blob], f.name, { type: IIC.DOCX_MIME }); wasFormatted = true;
-        const url = URL.createObjectURL(blob);
         fmtNote = "✓ Formatted to the CII&amp;E style: Times New Roman, headings 16/14 pt, body 12 pt justified, letterhead colours" +
-          (info.logosAdded.length ? ", " + (info.logosAdded.length === 2 ? "PSGCAS and IIC logos" : info.logosAdded[0] === "psg" ? "PSGCAS logo" : "IIC logo") + " added" : "") +
-          '. <a href="' + url + '" download="' + esc(f.name.replace(/\.docx$/i, "")) + ' - formatted.docx">Preview the formatted file</a>';
+          (info.logosAdded.length ? ", " + (info.logosAdded.length === 2 ? "PSGCAS and IIC logos" : info.logosAdded[0] === "psg" ? "PSGCAS logo" : "IIC logo") + " added" : "") + ".";
       } catch (e) {
         if (picked !== f) return;
         fmtNote = "The file couldn't be formatted automatically (" + esc(e.message || "error") + "); it will be uploaded as it is.";
