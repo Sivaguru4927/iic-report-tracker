@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IIC Report Submission · PSGCAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Literata:opsz,wght@7..72,600;7..72,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="with-ticker">
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <div class="college">PSG College of Arts &amp; Science</div>
+      <div class="centre">Centre for Innovation, Incubation &amp; Entrepreneurship</div>
+      <h1>IIC Report Submission</h1>
+    </div>
+  </header>
+
+  <main id="main" class="panel" style="margin-top:20px">
+    <form class="box" id="subForm" novalidate>
+      <div style="display:grid;gap:4px">
+        <h2>Submit your department's IIC report</h2>
+        <p class="hint">Fill in fields 1–7, then either <b>attach your report</b> (fields 8 to 10) or, if you can't submit it, <b>describe your difficulty</b> in field 11. You'll get an email when it's received and when it's verified or answered.</p>
+      </div>
+      <div class="tmpl">
+        <div class="tmpl-text">
+          <b>IIC event report format (Word)</b>
+          <span class="hint">Write your report in this format and upload it in field 9. The event title must contain words like Innovation, Entrepreneurship, Incubation, Start-Up or IPR, or MIC will not take it for verification.</span>
+        </div>
+        <a class="btn small" href="templates/IIC_Report_Template.docx" download="IIC_Report_Template.docx">Download template</a>
+      </div>
+      <p class="hint" id="s_noDept" hidden>Departments haven't been set up yet. Please contact the CII&amp;E office.</p>
+      <div class="grid">
+        <label><span><span class="num">1</span>Aided or SF</span>
+          <select id="s_type" required><option value="">Select…</option><option>Aided</option><option>SF</option></select></label>
+        <div class="field combo">
+          <label for="s_deptSearch"><span class="num">2</span>Department name</label>
+          <input id="s_deptSearch" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="s_deptList"
+                 autocomplete="off" spellcheck="false" placeholder="Type to search, e.g. commerce">
+          <ul id="s_deptList" class="combo-list" role="listbox" aria-label="Departments" hidden></ul>
+          <select id="s_dept" hidden tabindex="-1" aria-hidden="true"><option value=""></option></select>
+        </div>
+        <label><span><span class="num">3</span>Faculty name</span>
+          <select id="s_fac" required disabled><option value="">Select department first</option></select></label>
+        <label><span><span class="num">4</span>Mobile number</span>
+          <input id="s_mob" readonly placeholder="Fills in from faculty"></label>
+        <label><span><span class="num">5</span>Email</span>
+          <input id="s_email" type="email" maxlength="150" readonly autocomplete="email" placeholder="Fills in from faculty">
+          <span class="hint" id="s_emailHint" style="font-weight:400" hidden>No email on record for this faculty member. Enter it to receive the acknowledgement.</span></label>
+        <label><span><span class="num">6</span>Quarter</span>
+          <select id="s_q" required><option value="">Select…</option><option value="Quarter 1">Quarter 1 (Sep – Nov)</option><option value="Quarter 2">Quarter 2 (Dec – Feb)</option><option value="Quarter 3">Quarter 3 (Mar – May)</option><option value="Quarter 4">Quarter 4 (Jun – Aug)</option></select></label>
+        <label><span><span class="num">7</span>Month of activity <span class="hint" style="font-weight:400">— reports are accepted until the 10th of the next month</span></span>
+          <select id="s_month" required disabled><option value="">Select quarter first</option></select></label>
+        <label class="full"><span><span class="num">8</span>Activity type <span class="hint" style="font-weight:400">— the IIC calendar activity, important day, NIRF Innovation component or NISP item this report is for</span></span>
+          <select id="s_act" disabled><option value="">Select quarter first</option></select></label>
+        <label class="full"><span><span class="num">9</span>Report title</span>
+          <input id="s_title" required maxlength="300" placeholder="e.g. Session on Design Thinking and Ideation"></label>
+        <div class="full">
+          <label for="s_file"><span><span class="num">10</span>Report file <span class="hint" style="font-weight:400">— Word (.docx) only, up to 5 MB, in the <a href="templates/IIC_Report_Template.docx" download="IIC_Report_Template.docx">IIC report format</a></span></span></label>
+          <div class="drop" id="s_drop">
+            <input type="file" id="s_file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <span class="hint" id="s_fileInfo">No file chosen.</span>
+            <button type="button" class="btn ghost small" id="s_clear" hidden>Remove file</button>
+          </div>
+        </div>
+        <label class="full"><span><span class="num">11</span>Queries / Difficulties <span class="hint" style="font-weight:400">— if you can't submit the report, explain why here and leave 8 to 10 empty</span></span>
+          <textarea id="s_query" maxlength="1000" rows="3" placeholder="e.g. The event was postponed to next month, or the upload is not working. The CII&amp;E team will get back to you."></textarea></label>
+      </div>
+      <div class="row">
+        <button class="btn" type="submit" id="s_btn">Submit</button>
+        <span class="msg" id="s_msg" role="status"></span>
+      </div>
+    </form>
+
+    <div class="box done" id="s_done" hidden>
+      <h2 id="s_doneTitle">Report submitted</h2>
+      <dl class="kv" id="s_doneList"></dl>
+      <p class="hint" id="s_doneStatus"></p>
+      <div class="row"><button class="btn" type="button" id="s_another">Submit another</button></div>
+    </div>
+
+    <div class="box" id="s_histBox" hidden>
+      <div class="row" style="justify-content:space-between">
+        <h2 id="s_histTitle">Reports from this department</h2>
+        <button class="btn ghost small" type="button" id="s_refresh">Refresh</button>
+      </div>
+      <div class="scroll" id="s_hist"></div>
+      <h3 id="s_qTitle" hidden style="margin-top:8px">Queries from this department</h3>
+      <div class="scroll" id="s_qhist"></div>
+    </div>
+  </main>
+</div>
+
+<div class="ticker" role="marquee" aria-label="IIC verticals: Entrepreneurship, Innovation, Incubation, IPR, Startup">
+  <div class="tk-track"><div class="tk-group"><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span></div><div class="tk-group" aria-hidden="true"><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Entrepreneurship</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Innovation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Incubation</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">IPR</span><span class="tk-sep" aria-hidden="true">◆</span><span class="tk-item">Startup</span><span class="tk-sep" aria-hidden="true">◆</span></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="framework.js"></script>
+<script src="combo.js"></script>
+<script src="docxformat.js"></script>
+<script src="submit.js"></script>
+</body>
+</html>

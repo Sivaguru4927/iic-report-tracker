@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IIC REPORT TRACKER · PSGCAS</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Literata:opsz,wght@7..72,600;7..72,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <div class="college">PSG College of Arts &amp; Science</div>
+      <div class="centre">Centre for Innovation, Incubation &amp; Entrepreneurship</div>
+      <h1>IIC REPORT TRACKER</h1>
+    </div>
+    <div class="userbar" id="userbar" hidden>
+      <span id="who"></span>
+      <button class="btn ghost small" type="button" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <!-- LOGIN -->
+  <section id="loginArea" hidden>
+    <form class="box login" id="loginForm" novalidate>
+      <h2>Coordinator sign in</h2>
+      <p class="hint">Departments submit reports at the <a href="submit">submission page</a>. This page is for the CII&amp;E team.</p>
+      <label>Email<input id="l_email" type="email" autocomplete="username" required></label>
+      <label>Password<input id="l_pass" type="password" autocomplete="current-password" required></label>
+      <div class="row"><button class="btn" type="submit" id="l_btn">Sign in</button><span class="msg" id="l_msg" role="status"></span></div>
+    </form>
+  </section>
+
+  <!-- TRACKER -->
+  <div id="adminArea" hidden>
+    <div class="sharebar">
+      <div class="linkbox">
+        <span class="hint" style="margin:0"><b>Department submission link:</b></span>
+        <code id="subLink"></code>
+        <button class="btn ghost small" type="button" id="copyLink">Copy link</button>
+      </div>
+      <a class="btn ghost small" id="openSubmit" href="submit" target="_blank" rel="noopener">Open submission page</a>
+      <a class="btn ghost small" href="submit" target="_blank" rel="noopener" title="Opens the submission page in coordinator mode: the 10-day deadline doesn't apply">Add a previous month's report</a>
+    </div>
+
+    <nav role="tablist">
+      <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
+      <button role="tab" data-tab="reports" aria-selected="false">All reports</button>
+      <button role="tab" data-tab="summary" aria-selected="false">Summary</button>
+      <button role="tab" data-tab="queries" aria-selected="false">Queries <span class="badge" id="qBadge" hidden></span></button>
+      <button role="tab" data-tab="depts" aria-selected="false">Departments &amp; faculty</button>
+      <button role="tab" data-tab="emails" aria-selected="false">Emails</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section class="panel" id="tab-dash">
+      <div class="dashctl">
+        <label>Academic year<select id="db_year"></select></label>
+        <label>Month<select id="db_month"></select></label>
+        <label>Quarter<select id="db_q"><option>Quarter 1</option><option>Quarter 2</option><option>Quarter 3</option><option>Quarter 4</option></select></label>
+        <label>Aided / SF<select id="db_type"><option value="">Aided &amp; SF</option><option>Aided</option><option>SF</option></select></label>
+        <label>Count<select id="db_basis" title="Submitted reports excludes rejected ones"><option value="all">Submitted reports</option><option value="verified">Verified only</option></select></label>
+      </div>
+      <div class="dashhead"><h2 id="db_yearlabel">IIC year</h2><p class="hint" style="margin:0">Each submitted report counts as one activity (rejected reports are not counted). Click a month or quarter bar to see that period.</p></div>
+      <div class="tiles" id="db_tiles"></div>
+      <div class="dashgrid">
+        <div class="box">
+          <h2>Activities by month</h2>
+          <p class="hint" style="margin:0">By the month of activity on each report. Click a month to select it.</p>
+          <div class="bars" id="db_months"></div>
+        </div>
+        <div class="box">
+          <h2>Activities by quarter</h2>
+          <p class="hint" style="margin:0">By the quarter chosen on each report. Click a quarter to select it.</p>
+          <div class="hbars" id="db_quarters"></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <div><h2>Toppers and low performers</h2><p class="hint" style="margin:2px 0 0" id="db_plabel"></p></div>
+          <div class="seg" id="db_period" role="group" aria-label="Period">
+            <button type="button" data-p="month" aria-pressed="true">Month</button>
+            <button type="button" data-p="quarter" aria-pressed="false">Quarter</button>
+            <button type="button" data-p="year" aria-pressed="false">Year</button>
+          </div>
+        </div>
+        <div class="dashgrid">
+          <div><h3>Top performers</h3><ol class="lead" id="db_top"></ol></div>
+          <div><h3>Low performers</h3><ol class="lead" id="db_low"></ol></div>
+        </div>
+      </div>
+      <div class="box">
+        <h2>Department ranking</h2>
+        <p class="hint" style="margin:0">Ranked by activities in the IIC year. Departments with the same count share a rank.</p>
+        <div class="scroll" id="db_rank"></div>
+      </div>
+      <div class="panel" id="fw"></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="panel" id="tab-reports" hidden>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <h2>All reports</h2>
+          <div class="row">
+            <a class="btn small" href="submit" target="_blank" rel="noopener" title="Opens the submission page in coordinator mode: months whose deadline has passed can be chosen">Upload a late report</a>
+            <button class="btn ghost small" type="button" id="refresh">Refresh</button>
+            <button class="btn ghost small" type="button" id="xlsxReports">Download Excel</button>
+            <button class="btn ghost small" type="button" id="pdfReports">Download PDF</button>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="r_type" aria-label="Filter by Aided or SF"><option value="">Aided &amp; SF</option><option>Aided</option><option>SF</option></select>
+          <select id="r_dept" aria-label="Filter by department"><option value="">All departments</option></select>
+          <select id="r_q" aria-label="Filter by quarter"><option value="">All quarters</option><option>Quarter 1</option><option>Quarter 2</option><option>Quarter 3</option><option>Quarter 4</option></select>
+          <select id="r_ver" aria-label="Filter by verification status"><option value="">Any verification status</option><option>Pending Verification</option><option>Verified</option><option>Returned for Correction</option><option>Rejected</option></select>
+          <select id="r_query" aria-label="Filter by query"><option value="">With or without queries</option><option value="yes">Only reports with a query</option></select>
+          <select id="r_late" aria-label="Filter by late submission"><option value="">On time &amp; late</option><option value="late">Late submissions only</option><option value="ontime">On time only</option></select>
+        </div>
+        <p class="hint" style="margin:0">Change <b>Verification</b> and <b>Remarks</b> right in the table; each change saves on its own. <b>Type the remarks first, then change the status</b>: the faculty member gets an email with the remarks when the status changes to Verified, Returned for Correction or Rejected.</p>
+        <span class="msg" id="repMsg" role="status"></span>
+        <div class="scroll" id="repTable"><div class="empty">Loading reports…</div></div>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section class="panel" id="tab-summary" hidden>
+      <div class="tiles" id="tiles"></div>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <h2>Department-wise submitted reports</h2>
+          <div class="row"><button class="btn ghost small" type="button" id="xlsxSummary">Download Excel</button>
+          <button class="btn ghost small" type="button" id="pdfSummary">Download PDF</button></div>
+        </div>
+        <p class="hint">Counts reports marked <b>Submitted</b>, by quarter. The last two columns show how many of those are verified.</p>
+        <div class="scroll" id="sumTable"></div>
+      </div>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <h2>Reports by activity type</h2>
+          <div class="row">
+            <button class="btn ghost small" type="button" id="xlsxCats">Download Excel</button>
+            <button class="btn ghost small" type="button" id="pdfCats">Download PDF</button>
+          </div>
+        </div>
+        <p class="hint" style="margin:0">Each report is placed under one IIC activity type from the words in its title. Click a row to see its reports and the words used.</p>
+        <input id="cat_search" type="search" maxlength="80" placeholder="Count any other words in titles, e.g. design thinking, leadership" aria-label="Count reports with these words in the title">
+        <label class="checkrow" style="font-weight:500"><input id="cat_hideZero" type="checkbox"> Hide types with no reports</label>
+        <span class="msg" id="catMsg" role="status"></span>
+        <div class="scroll" id="cat_table"></div>
+      </div>
+    </section>
+
+    <!-- QUERIES -->
+    <section class="panel" id="tab-queries" hidden>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <h2>Queries from departments</h2>
+          <div class="row">
+            <button class="btn ghost small" type="button" id="xlsxQueries">Download Excel</button>
+            <button class="btn ghost small" type="button" id="pdfQueries">Download PDF</button>
+          </div>
+        </div>
+        <p class="hint" style="margin:0">Difficulties raised on the submission page, including departments that could not submit their report.
+          <b>Type your reply, then set the status to Resolved</b>: the faculty member gets your reply by email and sees it on the submission page.</p>
+        <div class="filters">
+          <select id="q_status" aria-label="Filter by status"><option value="open">Open and In Progress</option><option value="">All queries</option><option>Open</option><option>In Progress</option><option>Resolved</option></select>
+          <select id="q_type" aria-label="Filter by Aided or SF"><option value="">Aided &amp; SF</option><option>Aided</option><option>SF</option></select>
+          <select id="q_kind" aria-label="Filter by kind"><option value="">With or without a report</option><option value="none">Could not submit (no report)</option><option value="with">Sent with a report</option></select>
+        </div>
+        <span class="msg" id="qMsg" role="status"></span>
+        <div class="scroll" id="qTable"><div class="empty">Loading queries…</div></div>
+      </div>
+    </section>
+
+    <!-- DEPARTMENTS -->
+    <section class="panel" id="tab-depts" hidden>
+      <form class="box" id="deptForm" novalidate>
+        <h2>Add department with faculty</h2>
+        <div class="grid">
+          <label>Aided or SF<select id="d_type" required><option value="">Select…</option><option>Aided</option><option>SF</option></select></label>
+          <label>Department name<input id="d_name" required maxlength="150" list="deptNames" placeholder="e.g. Commerce (CA)"></label>
+          <label>Faculty name<input id="d_fac" required maxlength="120" placeholder="e.g. Dr. A. Kumar"></label>
+          <label>Mobile number<input id="d_mob" required inputmode="numeric" maxlength="10" placeholder="10-digit number"></label>
+          <label>Email<input id="d_email" type="email" required maxlength="150" autocomplete="off" placeholder="e.g. akumar@psgcas.ac.in"></label>
+        </div>
+        <datalist id="deptNames"></datalist>
+        <div class="row"><button class="btn" type="submit">Add</button><span class="msg" id="deptMsg" role="status"></span></div>
+      </form>
+      <details class="box">
+        <summary style="cursor:pointer;font-weight:600">Add many at once</summary>
+        <p class="hint">Paste one per line: <b>Aided or SF, Department, Faculty name, Mobile, Email</b>. You can copy five columns straight from Excel.</p>
+        <textarea id="bulk" rows="6" placeholder="Aided, Commerce, Dr. A. Kumar, 9876543210, akumar@psgcas.ac.in&#10;SF, Computer Science, Ms. B. Priya, 9123456780, bpriya@psgcas.ac.in"></textarea>
+        <div class="row"><button class="btn" type="button" id="bulkBtn">Add all</button><span class="msg" id="bulkMsg" role="status"></span></div>
+      </details>
+      <div class="box">
+        <div class="row" style="justify-content:space-between">
+          <h2>Departments on record</h2>
+          <div class="row">
+            <button class="btn ghost small" type="button" id="xlsxDepts">Download Excel</button>
+            <button class="btn ghost small" type="button" id="pdfDepts">Download PDF</button>
+          </div>
+        </div>
+        <p class="hint" style="margin:0">Click <b>Edit</b> to change a name, mobile number or email, then <b>Save</b>. Earlier reports are updated to match.</p>
+        <span class="msg" id="deptTblMsg" role="status"></span>
+        <div class="scroll" id="deptTable"></div>
+      </div>
+    </section>
+
+    <!-- EMAILS -->
+    <section class="panel" id="tab-emails" hidden>
+      <div class="box" id="mailNotReady" hidden>
+        <h2>Email notifications aren't installed yet</h2>
+        <p class="hint">Run <b>supabase-email-notifications.sql</b> in the Supabase SQL Editor, then reload this page. See SETUP.md, Step 8.</p>
+      </div>
+      <div id="mailReady" hidden class="panel">
+        <div class="box">
+          <h2>What gets emailed</h2>
+          <ul class="mailinfo">
+            <li><b>Acknowledgement</b> to the faculty member as soon as their department submits a report.</li>
+            <li><b>Verification result</b> to the faculty member when you set a report to Verified, Returned for Correction or Rejected, with your remarks.</li>
+            <li><b>Monthly reminder</b> at 10:00 AM on the <b>20th of every month</b> to departments with no report submitted that month, and a summary to the coordinator email.</li>
+          </ul>
+          <p class="hint" style="margin:0">Emails go to the faculty emails in Departments &amp; faculty. If a faculty member has no email on record, the email comes to the coordinator email instead.</p>
+        </div>
+
+        <form class="box" id="mailForm" novalidate>
+          <h2>Settings</h2>
+          <div class="linkbox">
+            <span class="hint" style="margin:0"><b>Secret for the Apps Script:</b></span>
+            <code id="m_secret">…</code>
+            <button class="btn ghost small" type="button" id="copySecret">Copy</button>
+          </div>
+          <div class="grid">
+            <label class="full">Apps Script web app link
+              <input id="m_url" type="url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+            <label>Coordinator email (gets the monthly summary)
+              <input id="m_admin" type="email" required></label>
+            <label>Site address (used for links in emails)
+              <input id="m_site" type="url" placeholder="https://iicactivitytracker.netlify.app"></label>
+            <label class="checkrow full"><input id="m_rem" type="checkbox"> Send reminders automatically on the 20th of every month</label>
+          </div>
+          <div class="row">
+            <button class="btn" type="submit" id="m_save">Save settings</button>
+            <button class="btn ghost" type="button" id="m_test">Send test email</button>
+            <span class="msg" id="m_msg" role="status"></span>
+          </div>
+        </form>
+
+        <div class="box">
+          <div class="row" style="justify-content:space-between">
+            <h2>Send reminders now</h2>
+            <button class="btn ghost" type="button" id="m_remind">Send this month's reminders now</button>
+          </div>
+          <p class="hint" style="margin:0">Emails every department with no report submitted so far this month. Use it if you need reminders before the 20th, or to test. Click twice to confirm.</p>
+          <span class="msg" id="m_remMsg" role="status"></span>
+        </div>
+
+        <div class="box">
+          <div class="row" style="justify-content:space-between">
+            <h2>Email log</h2>
+            <button class="btn ghost small" type="button" id="m_logRefresh">Refresh</button>
+          </div>
+          <p class="hint" style="margin:0"><b>Sent to Google</b> means the email was handed to your Apps Script for sending. Delivery details are kept for about 6 hours.</p>
+          <div class="scroll" id="m_log"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="export.js"></script>
+<script src="framework.js"></script>
+<script src="dashboard.js"></script>
+<script src="categories.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
