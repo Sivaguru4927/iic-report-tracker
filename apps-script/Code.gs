@@ -28,7 +28,7 @@ const CC_COORDINATOR = false;
 
 // 4. Google Drive storage for report files (Step 9).
 //    Your Supabase Project URL (same as in config.js):
-const SUPABASE_URL = 'https://PASTE-YOUR-PROJECT.supabase.co';
+const SUPABASE_URL = 'https://cjepzeuayihmrjgbhizo.supabase.co';
 //    The Supabase service_role / secret key is NOT pasted here. Add it in
 //    Project Settings (gear icon) → Script properties → name SUPABASE_SERVICE_KEY.
 const DRIVE_FOLDER_NAME = 'IIC Report Tracker – Reports';
