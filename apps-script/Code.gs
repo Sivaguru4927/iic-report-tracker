@@ -404,21 +404,39 @@ function aiCall_(system, user) {
     url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(AI_MODEL) + ':generateContent';
     o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
           payload: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }],
-                                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 4000 } }) };
+                                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 } }) };
     pick = j => j.candidates[0].content.parts.map(p => p.text || '').join('');
   } else {
     url = 'https://api.anthropic.com/v1/messages';
     o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
           headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-          payload: JSON.stringify({ model: AI_MODEL, max_tokens: 4000, temperature: 0.1, system: system, messages: [{ role: 'user', content: user }] }) };
+          payload: JSON.stringify({ model: AI_MODEL, max_tokens: 8000, temperature: 0.1, system: system, messages: [{ role: 'user', content: user }] }) };
     pick = j => j.content.filter(c => c.type === 'text').map(c => c.text).join('');
   }
-  const r = UrlFetchApp.fetch(url, o), code = r.getResponseCode();
-  if (code >= 300) throw new Error('AI service ' + code + ': ' + r.getContentText().slice(0, 200));
-  const out = pick(JSON.parse(r.getContentText()));
-  const m = out.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('AI reply was not JSON');
-  return JSON.parse(m[0]);
+  // up to 2 tries: an AI reply is occasionally cut short or has a JSON slip; a second try almost always fixes it
+  let last = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const r = UrlFetchApp.fetch(url, o), code = r.getResponseCode();
+    if (code >= 300) throw new Error('AI service ' + code + ': ' + r.getContentText().slice(0, 200));
+    let out = '';
+    try { out = pick(JSON.parse(r.getContentText())); } catch (e) { last = 'empty AI reply'; continue; }
+    const j = parseAiJson_(out);
+    if (j) return j;
+    last = out;
+    console.warn('AI reply was not valid JSON (try ' + attempt + '): ' + out.slice(0, 300));
+  }
+  throw new Error('AI reply was not valid JSON after 2 tries: ' + String(last).slice(0, 150));
+}
+
+// reads the AI's JSON leniently: code fences, text around it, trailing commas, curly quotes as JSON quotes
+function parseAiJson_(out) {
+  let t = String(out || '').replace(/```(?:json)?/gi, '');
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  t = t.slice(a, b + 1);
+  const tries = [t, t.replace(/,\s*([}\]])/g, '$1'), t.replace(/,\s*([}\]])/g, '$1').replace(/[\u201C\u201D]/g, '"')];
+  for (const x of tries) { try { return JSON.parse(x); } catch (e) { } }
+  return null;
 }
 
 const AI_SYSTEM_ = [
@@ -439,12 +457,13 @@ const AI_SYSTEM_ = [
   'CHECKS:',
   AI_CHECKS_.map(c => c[0] + ' ' + c[1]).join('\n'),
   '',
-  'Reply with JSON only, no other text:',
-  '{"checks":[{"id":"T1","pass":true,"note":"short reason, max 25 words"}, … one entry for every check T1–T20],',
-  ' "relevance":{"subject":"the subject of the event title, in a few words","score":0-100,',
-  '   "off_topic":["section name: what it is about instead, max 20 words", …],"title_match":true},',
+  'Reply with one valid JSON object only, no other text, in exactly this shape (one entry in "checks" for every check T1 to T20;',
+  '"score" is a whole number 0-100; "off_topic" and "fixes" may be empty lists):',
+  '{"checks":[{"id":"T1","pass":true,"note":"short reason"},{"id":"T2","pass":false,"note":"short reason"}],',
+  ' "relevance":{"subject":"subject of the event title","score":85,"off_topic":["Section name: what it is about instead"],"title_match":true},',
   ' "summary":"one formal sentence on the report overall",',
-  ' "fixes":["each correction the department must make, as a short instruction in formal English", …]}'
+  ' "fixes":["a correction the department must make, as a short instruction"]}',
+  'Keep each note under 25 words. Inside text values never use double quotes (use single quotes instead) and no line breaks.'
 ].join('\n');
 
 function reviewOne_(r, blob) {
