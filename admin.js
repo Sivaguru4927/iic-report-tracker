@@ -193,6 +193,7 @@
     const cls = r.ai_decision === "Verified" ? "ok" : "warn";
     return `<details class="ai-chip ai-${cls}"><summary>AI ${r.ai_score}/100 · ${esc(r.ai_decision === "Verified" ? "Verified" : "Returned")}${fails.length ? " · " + fails.length + " issue" + (fails.length > 1 ? "s" : "") : ""}</summary>
       ${v.summary ? `<p>${esc(v.summary)}</p>` : ""}
+      ${v.relevance && v.relevance.score != null ? `<p><b>Relevance to the title${v.relevance.subject ? " (" + esc(v.relevance.subject) + ")" : ""}:</b> ${esc(String(v.relevance.score))}/100${(v.relevance.off_topic || []).length ? " · off-topic: " + v.relevance.off_topic.map(esc).join("; ") : ""}</p>` : ""}
       ${fails.length ? `<ul>${fails.map(c => `<li><b>${esc(c.id)}${c.critical ? " (critical)" : ""}</b> ${esc(c.note)}</li>`).join("")}</ul>` : "<p>All checks passed.</p>"}
       <p class="hint">${esc(String(v.words || "?"))} words · ${esc(String(v.images ?? "?"))} images · ${IIC.day(r.ai_checked_at)}</p>
       <button class="btn ghost small" data-recheck="${esc(r.id)}">Check again</button></details>`;

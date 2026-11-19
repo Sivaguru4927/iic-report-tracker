@@ -189,15 +189,20 @@ To see what the mover did: Apps Script → **Executions** (left menu).
 ## Step 10 — AI report check (optional)
 
 An AI agent reads every new report after it reaches Drive and checks it against the
-**IIC Event Report Format template** (`templates/IIC_Report_Template.docx`, the one on the submission page), 19 checks:
+**IIC Event Report Format template** (`templates/IIC_Report_Template.docx`, the one on the submission page), 20 checks:
 header; **title must contain Innovation / Entrepreneurship / Incubation / Start-Up / IPR**; details block (date, time,
 duration, internal/external participants, category, theme, lead by, level 1–4, mode); department and month match;
 expert details; Outcome; Objective (100+ words); Benefits (250+); Brief Description (500+); photographs with captions;
 Key Highlights (250+); 2–3 feedback entries; organising team; permission letter, poster and signed attendance;
-social media links; no template blanks left (____, dd.mm.yyyy, (Eg: …)); consistent details; formal style; content fits
-the title and Activity type. The title words, leftover template blanks and the number of images (at least 5) are
+social media links; no template blanks left (____, dd.mm.yyyy, (Eg: …)); consistent details; formal style;
+**content relevant to the title** (critical, T19); content fits the theme and Activity type (T20). The title words, leftover template blanks and the number of images (at least 5) are
 checked by the script itself, not the AI. It runs inside the same Apps Script, every 5 minutes.
 
+- **Relevance to the title (T19):** the AI names the subject of the event title, reads every section (objective,
+  description, highlights, benefits, outcome, speaker topic, photo captions) and gives a relevance score out of 100
+  with the off-topic sections. Below `AI_RELEVANCE_MIN_` (60), or when the title in the report differs from the
+  title entered on the submission page, the report is returned with the sections to rewrite. The score shows in
+  the report's AI check box in All reports.
 - **Score:** starts at 100; each failed critical check −15, each other check −5.
 - **Decision:** *Verified* only if no critical check fails and the score is at least `AI_PASS_SCORE` (70);
   otherwise *Returned for Correction*. The AI never rejects a report.

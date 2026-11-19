@@ -365,8 +365,10 @@ const AI_CHECKS_ = [
   ['T16', 'No template placeholders left unfilled: blank lines (____), "dd.mm.yyyy", "00:00 AM/PM", "(Eg: …)", both options left in "Institute Council / Student Council" or "1/ 2/ 3/ 4"', true],
   ['T17', 'Date, time, venue, participant numbers and speaker names are the same everywhere they appear; no claims of results (patents, start-ups, funding) without details', true],
   ['T18', 'Formal English, written in the third person and past tense; no slang or emoji', false],
-  ['T19', 'The report content fits the event title, the theme and the selected Activity type', false]
+  ['T19', 'CONTENT RELEVANT TO THE TITLE: the Objective, Brief Description, Key Highlights, Benefits, Outcome, the speaker\'s topic and the photo captions are all about the subject named in the event title (e.g. a report titled "Design Thinking Workshop" describes design thinking). Fails if the content is about a different subject, is generic text that could fit any event, or is copied from another event\'s report', true],
+  ['T20', 'The report content fits the Theme written in the report and the Activity type selected on the submission', false]
 ];
+const AI_RELEVANCE_MIN_ = 60;   // relevance of the content to the title (0–100); below this the report is returned (T19)
 const TITLE_WORDS_ = /innovat|entrepreneur|incubat|start[\s-]?ups?\b|\bipr\b|intellectual property/i;
 const PLACEHOLDERS_ = [/_{4,}/, /dd\.mm\.yyyy/i, /00:00\s*AM\s*\/\s*PM/i, /\(\s*Eg\s*:/i, /Student No\.\s*\/\s*Faculty No\./i, /Stu\.No\.\s*\/\s*FacultyNo/i];
 const MIN_IMAGES_ = 5;   // photographs (2+), permission letter, poster, attendance sheet
@@ -428,11 +430,19 @@ const AI_SYSTEM_ = [
   'Images appear in the text as [IMAGE]. Word counts are approximate; allow about 15% either side.',
   'Do not judge the quality of the event itself, only whether the report follows the format and is consistent and complete.',
   '',
+  'TITLE RELEVANCE (T19): first find the subject of the event title (from "Title of the Event" in the report, or the report title in',
+  'the submission details). Then read each section and judge whether it is about that subject. A section is off-topic when it describes',
+  'a different subject, a different event or speaker topic, or is generic filler that names no idea specific to the title.',
+  'Give a relevance score from 0 (unrelated to the title) to 100 (every section is clearly about the title), and list the off-topic sections.',
+  'Also check that the event title in the report and the report title in the submission details describe the same event.',
+  '',
   'CHECKS:',
   AI_CHECKS_.map(c => c[0] + ' ' + c[1]).join('\n'),
   '',
   'Reply with JSON only, no other text:',
-  '{"checks":[{"id":"T1","pass":true,"note":"short reason, max 25 words"}, … one entry for every check T1–T19],',
+  '{"checks":[{"id":"T1","pass":true,"note":"short reason, max 25 words"}, … one entry for every check T1–T20],',
+  ' "relevance":{"subject":"the subject of the event title, in a few words","score":0-100,',
+  '   "off_topic":["section name: what it is about instead, max 20 words", …],"title_match":true},',
   ' "summary":"one formal sentence on the report overall",',
   ' "fixes":["each correction the department must make, as a short instruction in formal English", …]}'
 ].join('\n');
@@ -467,6 +477,19 @@ function reviewOne_(r, blob) {
                          'Add the PSG College of Arts & Science logo and the IIC logo at the top of the report.');
   if (d.images < MIN_IMAGES_) force('T14', 'Only ' + d.images + ' image(s) in the file; photographs, permission letter, poster and attendance sheet are expected.',
                                     'Insert the photographs with captions, the permission letter, the poster and the signed attendance sheet as images in the Word file.');
+  // content relevance to the title: decided from the AI's relevance score, so a weak match is never let through
+  const rel = res.relevance || {};
+  const relScore = Math.max(0, Math.min(100, Math.round(Number(rel.score))));
+  const offTopic = (Array.isArray(rel.off_topic) ? rel.off_topic : []).map(String).filter(Boolean).slice(0, 5);
+  const relevance = { subject: String(rel.subject || '').slice(0, 120), score: isFinite(relScore) ? relScore : null,
+                      off_topic: offTopic.map(x => x.slice(0, 160)), title_match: rel.title_match !== false };
+  if (relevance.score !== null && relevance.score < AI_RELEVANCE_MIN_)
+    force('T19', 'Content relevance to the title ' + relevance.score + '/100' + (offTopic.length ? '; off-topic: ' + offTopic.slice(0, 3).join('; ') : '') + '.',
+          'Rewrite the report so that the objective, description, highlights, benefits and outcome describe "' + String(title).slice(0, 80) +
+          '"' + (offTopic.length ? ' (off-topic now: ' + offTopic.slice(0, 3).map(x => x.split(':')[0]).join(', ') + ')' : '') + '.');
+  else if (!relevance.title_match)
+    force('T19', 'The event title in the report does not match the report title given on the submission ("' + String(r.title).slice(0, 80) + '").',
+          'Make the event title in the report the same as the report title entered on the submission page.');
   let score = 100;
   checks.forEach(c => { if (!c.pass) score -= c.critical ? 15 : 5; });
   score = Math.max(0, score);
@@ -475,7 +498,7 @@ function reviewOne_(r, blob) {
   const fixes = (res.fixes || []).map(String).filter(Boolean).slice(0, 8);
   fixes.unshift(...forced.filter(f => !fixes.some(x => x.slice(0, 30) === f.slice(0, 30))));
   return { score: score, decision: decision, checks: checks, fixes: fixes, summary: String(res.summary || '').slice(0, 300),
-           words: d.words, images: d.images, model: AI_PROVIDER + ':' + AI_MODEL };
+           relevance: relevance, words: d.words, images: d.images, model: AI_PROVIDER + ':' + AI_MODEL };
 }
 
 function aiRemarks_(v) {
@@ -530,6 +553,8 @@ function testAiCheck() {
   if (!rows.length) throw new Error('No report in Drive yet to test with.');
   const v = reviewOne_(rows[0], DriveApp.getFileById(rows[0].drive_id).getBlob());
   console.log('Report: ' + rows[0].title + '\nScore ' + v.score + ' – ' + v.decision + '\n' +
+    'Relevance to the title "' + v.relevance.subject + '": ' + v.relevance.score + '/100' +
+    (v.relevance.off_topic.length ? ' — off-topic: ' + v.relevance.off_topic.join('; ') : '') + '\n' +
     v.checks.map(c => (c.pass ? '✓ ' : '✕ ') + c.id + (c.critical ? ' (critical) ' : ' ') + c.note).join('\n') +
     '\n\nRemarks the department would get:\n' + aiRemarks_(v) + '\n\n(Test only: nothing was saved.)');
 }
