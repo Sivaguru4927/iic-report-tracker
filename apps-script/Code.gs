@@ -41,8 +41,8 @@ const AI_PROVIDER = 'claude';            // 'claude' (Anthropic API key) or 'gem
 const AI_MODEL = 'claude-sonnet-5-5';    // for Gemini use a model name from Google AI Studio, e.g. 'gemini-2.5-flash'
 const AI_MODE = 'auto';                  // 'auto' = AI sets Verified / Returned for Correction and the department is emailed
                                          // 'suggest' = AI only writes its review in the tracker; you decide
-const AI_PASS_SCORE = 70;
-const AI_FALLBACK_MODEL = 'gemini-2.5-flash-lite';   // used for a last try when Gemini is busy ('' = none)                // below this score a report is returned, even with no critical problem
+const AI_PASS_SCORE = 70;                // below this score a report is returned, even with no critical problem
+const AI_FALLBACK_MODEL = 'gemini-2.5-flash-lite';   // used for a last try when Gemini is busy ('' = none)
 
 
 /* ------------------------------------------------------------------ */
