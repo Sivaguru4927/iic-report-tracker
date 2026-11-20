@@ -75,10 +75,12 @@ function doGet() {
 /* ---------- the five emails ---------- */
 
 function mailSubmitted_(d) {
-  const subject = 'IIC report received – ' + d.dept + ' – ' + d.quarter;
+  const subject = (d.resubmitted ? 'Corrected IIC report received – ' : 'IIC report received – ') + d.dept + ' – ' + d.quarter;
   const body =
     p_('Dear ' + esc_(d.faculty) + ',') +
-    p_('Thank you. Your department\'s IIC report has been received by the CII&amp;E office and is now <b>pending verification</b>.') +
+    p_(d.resubmitted
+      ? 'Thank you. Your <b>corrected</b> IIC report has been received. It has replaced the earlier file and is now <b>pending verification</b> again.'
+      : 'Thank you. Your department\'s IIC report has been received by the CII&amp;E office and is now <b>pending verification</b>.') +
     details_(d) +
     p_('You will receive another email once the report has been verified. You can also check its status on the submission page by selecting your department.') +
     (d.query ? p_('We have received your query and the CII&amp;E team will get back to you.') : '') +
@@ -97,7 +99,9 @@ function mailStatus_(d) {
   const body =
     p_('Dear ' + esc_(d.faculty) + ',') + p_(msg) + details_(d) +
     (d.remarks ? p_('<b>Remarks:</b> ' + esc_(d.remarks)) : '') +
-    (v !== 'Verified' ? link_(d.siteUrl ? d.siteUrl + '/submit' : '', 'Submit the corrected report') : '');
+    (v === 'Returned for Correction' ? link_(correctionUrl_(d), 'Submit the corrected report') +
+       p_('<span style="font-size:12px;color:#5a6b65">This button opens this report on the submission page. The corrected Word file you upload there replaces the earlier one.</span>')
+     : v === 'Rejected' ? link_(d.siteUrl ? d.siteUrl + '/submit' : '', 'Open the submission page') : '');
   send_(d, subject, body, CC_COORDINATOR);
 }
 
@@ -114,6 +118,14 @@ function mailReminder_(d) {
 }
 
 // "November 2026" → " The last date … is 10 December 2026; late reports cannot be accepted."
+// the link in the "returned for correction" email: opens this report on the submission page to replace its file
+function correctionUrl_(d) {
+  if (!d.siteUrl) return '';
+  return d.reportId && d.editToken
+    ? d.siteUrl.replace(/\/$/, '') + '/submit?fix=' + encodeURIComponent(d.reportId) + '&t=' + encodeURIComponent(d.editToken)
+    : d.siteUrl.replace(/\/$/, '') + '/submit';
+}
+
 function deadline_(label) {
   const m = /^([A-Za-z]+)\s+(\d{4})$/.exec(String(label || '').trim()); if (!m) return '';
   const i = MONTHS_.indexOf(m[1]); if (i < 0) return '';
@@ -290,8 +302,10 @@ function moveFilesToDrive() {
   if (!lock.tryLock(1000)) return;                       // the previous run is still busy
   const started = Date.now(), done = [], failed = [];
   try {
-    const rows = sb_('get', '/rest/v1/reports?select=id,type,dept,faculty,quarter,month,title,file_path,file_name,created_at' +
-                     '&drive_id=is.null&file_path=not.is.null&order=created_at.asc&limit=25');
+    const q = '&drive_id=is.null&file_path=not.is.null&order=created_at.asc&limit=25';
+    let rows;
+    try { rows = sb_('get', '/rest/v1/reports?select=id,type,dept,faculty,quarter,month,title,file_path,file_name,created_at,drive_prev_id' + q); }
+    catch (e) { rows = sb_('get', '/rest/v1/reports?select=id,type,dept,faculty,quarter,month,title,file_path,file_name,created_at' + q); }  // before supabase-update-resubmit.sql
     const root = rootFolder_();
     for (const r of rows) {
       if (Date.now() - started > 4.5 * 60 * 1000) break;  // stay inside Google's 6-minute limit
@@ -315,6 +329,10 @@ function moveFilesToDrive() {
         try { sb_('patch', '/rest/v1/reports?id=eq.' + r.id, { drive_id: file.getId(), drive_url: file.getUrl() }); }
         catch (e) { file.setTrashed(true); throw e; }        // don't leave a copy the tracker doesn't know about
         try { sb_('delete', obj); } catch (e) { /* the Drive copy is saved; the Supabase copy can be removed later */ }
+        if (r.drive_prev_id) {                               // a corrected report: the earlier file goes to the Drive bin
+          try { DriveApp.getFileById(r.drive_prev_id).setTrashed(true); } catch (e) { /* already gone */ }
+          try { sb_('patch', '/rest/v1/reports?id=eq.' + r.id, { drive_prev_id: null }); } catch (e) { }
+        }
         done.push(r.title);
       } catch (e) { failed.push(r.title + ': ' + e); }
     }

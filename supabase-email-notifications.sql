@@ -120,12 +120,16 @@ declare
     'submittedAt', to_char(new.created_at at time zone 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM'),
     'verification', new.verification, 'remarks', coalesce(new.remarks, ''),
     'query', coalesce(new.query, ''),
+    'reportId', new.id, 'editToken', new.edit_token, 'resubmitted', coalesce(new.resubmit_count, 0) > 0,
     'activityMonth', case when new.month ~ '^[0-9]{4}-[0-9]{2}$'
                           then to_char(to_date(new.month || '-01', 'YYYY-MM-DD'), 'FMMonth YYYY') else '' end);
 begin
   if tg_op = 'INSERT' then
     perform public.queue_mail('submitted', rcpt,
       'Acknowledgement · ' || new.dept || ' · ' || new.quarter || ' · ' || new.title, new.id, info);
+  elsif coalesce(new.resubmit_count, 0) > coalesce(old.resubmit_count, 0) then          -- corrected report uploaded
+    perform public.queue_mail('submitted', rcpt,
+      'Corrected report received · ' || new.dept || ' · ' || new.quarter || ' · ' || new.title, new.id, info);
   elsif new.verification is distinct from old.verification
         and new.verification in ('Verified', 'Returned for Correction', 'Rejected') then
     perform public.queue_mail('status', rcpt,

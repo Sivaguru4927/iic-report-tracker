@@ -126,7 +126,8 @@ begin
     new.query        := nullif(trim(coalesce(new.query, '')), '');
     new.created_at   := now();
   end if;
-  if tg_op = 'UPDATE' and not public.is_admin() and not public.is_service() then
+  if tg_op = 'UPDATE' and not public.is_admin() and not public.is_service()
+     and coalesce(current_setting('iic.resubmit', true), '') <> new.id::text then   -- corrected file sent through resubmit_report()
     raise exception 'Not allowed.';
   end if;
   new.updated_at := now();

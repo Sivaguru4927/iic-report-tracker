@@ -214,7 +214,9 @@ const THANKS = "Thanks for Submission";
   function fileCell(r) {
     if (!r.file_path) return '<span class="hint">—</span>';
     // files are moved to the coordinator's Google Drive by the Apps Script (Step 9); until then they are in Supabase
-    const fm = r.formatted ? '<span class="pill p-ok fmt-pill" title="Formatted to the CII&amp;E report style by the AI formatting agent on upload">Formatted</span>' : "";
+    const fm = (r.formatted ? '<span class="pill p-ok fmt-pill" title="Formatted to the CII&amp;E report style by the AI formatting agent on upload">Formatted</span>' : "") +
+      (r.resubmit_count ? `<span class="pill p-warn fmt-pill" title="Corrected file uploaded${r.resubmitted_at ? " on " + esc(IIC.day(r.resubmitted_at)) : ""}">Corrected${r.resubmit_count > 1 ? " ×" + r.resubmit_count : ""}</span>` : "") +
+      (r.verification === "Returned for Correction" && r.edit_token ? `<div><button class="linkbtn" data-fixlink="${esc(r.id)}" title="The link in the department's email: opens this report to upload the corrected file">Copy correction link</button></div>` : "");
     if (r.drive_url) return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><a class="btn ghost small" href="${esc(r.drive_url)}" target="_blank" rel="noopener">Open in Drive</a></div>${fm}`;
     if (r.drive_id === "missing") return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><span class="hint">File not found</span></div>`;
     return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><button class="btn ghost small" data-dl="${esc(r.id)}">Download</button></div>${fm}`;
@@ -425,6 +427,14 @@ const THANKS = "Thanks for Submission";
 
   /* ---------- two-click delete + downloads ---------- */
   document.addEventListener("click", e => {
+    const fl = e.target.closest("[data-fixlink]");
+    if (fl) {
+      const r = state.reports.find(x => x.id === fl.dataset.fixlink); if (!r) return;
+      const url = location.origin + "/submit?fix=" + r.id + "&t=" + r.edit_token;
+      (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { fl.textContent = "Link copied"; },
+        () => { window.prompt("Correction link for " + r.dept + ":", url); }).finally(() => setTimeout(() => { if (fl.isConnected) fl.textContent = "Copy correction link"; }, 2500));
+      return;
+    }
     const rc = e.target.closest("[data-recheck]");
     if (rc) { e.preventDefault(); patchReport(rc.dataset.recheck, { verification: "Pending Verification", ai_checked_at: null, ai_attempts: 0, ai_review: null, ai_score: null, ai_decision: null }, rc).then(renderReports); return; }
     const b = e.target.closest("[data-del-report],[data-del-dept],[data-del-query]");

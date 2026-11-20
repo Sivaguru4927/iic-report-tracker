@@ -19,6 +19,36 @@
   </header>
 
   <main id="main" class="panel" style="margin-top:20px">
+    <section class="box" id="fixBox" hidden>
+      <div style="display:grid;gap:4px">
+        <h2>Submit the corrected report</h2>
+        <p class="hint">This report was returned for correction. Upload the corrected Word file here: it <b>replaces the earlier file</b> of the same report, and the report goes back for verification. You'll get an email when it's received and when it's verified.</p>
+      </div>
+      <p class="msg err" id="f_bad" hidden></p>
+      <div id="f_body" style="display:grid;gap:14px" hidden>
+        <dl class="kv" id="f_info"></dl>
+        <div class="query" id="f_remarks" hidden></div>
+        <div class="tmpl">
+          <div class="tmpl-text"><b>IIC event report format (Word)</b><span class="hint">Make the corrections in the same format.</span></div>
+          <a class="btn small" href="templates/IIC_Report_Template.docx" download="IIC_Report_Template.docx">Download template</a>
+        </div>
+        <label for="f_file"><span><span class="num">✎</span>Corrected report file <span class="hint" style="font-weight:400">— Word (.docx) only, up to 5 MB</span></span></label>
+        <div class="drop" id="f_drop">
+          <input type="file" id="f_file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <span class="hint" id="f_fileInfo">No file chosen.</span>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" type="button" id="f_btn">Replace the report file</button>
+          <span class="msg" id="f_msg" role="status"></span>
+        </div>
+      </div>
+      <div id="f_done" hidden>
+        <p class="msg ok" style="font-size:16px"><b>Corrected report received.</b> It has replaced the earlier file and is now pending verification.</p>
+        <p class="hint">You can close this page. A confirmation email is on its way.</p>
+      </div>
+      <p class="hint" style="margin-top:8px"><a href="submit">Submit a different report instead</a></p>
+    </section>
+
     <form class="box" id="subForm" novalidate>
       <div style="display:grid;gap:4px">
         <h2>Submit your department's IIC report</h2>
@@ -105,5 +135,6 @@
 <script src="combo.js"></script>
 <script src="docxformat.js"></script>
 <script src="submit.js"></script>
+<script src="fix.js"></script>
 </body>
 </html>

@@ -298,3 +298,12 @@ NISP sections count classified reports automatically.
 - **Automatically from the title and activity type** for every other report (old ones, and the artifact version, which
   has no AI). Shown as "auto (title / activity type)".
 - A NIRF component or NISP item chosen by the department in *Activity type* is always included.
+
+## Corrected reports (link in the "returned for correction" email)
+
+Run `supabase-update-resubmit.sql` once. The **Submit the corrected report** button in the email then opens
+`/submit?fix=<report id>&t=<secret>`: the department sees that report and what to correct, and uploads the corrected
+Word file. It **replaces** the earlier file of the same report (no new report is created), the report goes back to
+*Pending Verification*, the AI agent checks it again, and a "Corrected report received" email is sent. In Google Drive
+the corrected file is saved in the same folder and the earlier file goes to the bin. All reports marks such reports
+**Corrected** and has a *Copy correction link* button on returned reports (to send the link again yourself).
