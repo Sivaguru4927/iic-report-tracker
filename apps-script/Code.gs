@@ -42,7 +42,7 @@ const AI_MODEL = 'claude-sonnet-5-5';    // for Gemini use a model name from Goo
 const AI_MODE = 'auto';                  // 'auto' = AI sets Verified / Returned for Correction and the department is emailed
                                          // 'suggest' = AI only writes its review in the tracker; you decide
 const AI_PASS_SCORE = 70;                // below this score a report is returned, even with no critical problem
-const AI_FALLBACK_MODEL = '';           // optional second Gemini model for a last try when the first is busy ('' = none)
+const AI_FALLBACK_MODEL = 'gemini-3.5-flash-lite';   // lighter Gemini model used when AI_MODEL is busy ('' = none)
 
 
 /* ------------------------------------------------------------------ */
@@ -443,7 +443,7 @@ function aiCall_(system, user) {
     gem = model => {
       const gc = { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 };
       if (/^gemini-2\.5/.test(model)) gc.thinkingConfig = { thinkingBudget: /lite/.test(model) ? 0 : 1024 };  // keeps room for the answer and speeds it up
-      else if (/^gemini-[3-9]/.test(model) && !noThink) gc.thinkingConfig = { thinkingLevel: 'low' };            // newer models: think briefly = much faster
+      else if (/^gemini-[3-9]/.test(model) && !/lite/.test(model) && !noThink) gc.thinkingConfig = { thinkingLevel: 'low' };            // newer models: think briefly = much faster
       url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
       o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
             payload: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: gc }) };
@@ -470,8 +470,9 @@ function aiCall_(system, user) {
     if (code === 429 || code >= 500) {
       last = 'AI service busy ' + code + ': ' + r.getContentText().slice(0, 160); busy++;
       console.warn(last);
-      if (attempt < 4) Utilities.sleep(code === 429 ? 20000 : 8000 * attempt);
-      if (attempt === 3 && gem && AI_FALLBACK_MODEL && AI_FALLBACK_MODEL !== AI_MODEL) gem(AI_FALLBACK_MODEL);
+      // switch between the main and the lighter model: when one is overloaded the other usually still answers
+      if (gem && AI_FALLBACK_MODEL && AI_FALLBACK_MODEL !== AI_MODEL) { model = model === AI_FALLBACK_MODEL ? AI_MODEL : AI_FALLBACK_MODEL; noThink = false; gem(model); }
+      if (attempt < 4) Utilities.sleep(code === 429 ? 20000 : 5000 * attempt);
       continue;
     }
     const body = r.getContentText();
