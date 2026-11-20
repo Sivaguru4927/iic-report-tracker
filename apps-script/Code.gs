@@ -535,7 +535,7 @@ function activityLabel_(k) {
   if (!k) return 'not selected';
   const p = String(k).split('|');
   return { cal: 'IIC calendar activity ' + (p[1] || '') + ' item ' + (p[2] || ''), day: 'IIC important day ' + (p[1] || ''),
-           nirf: 'NIRF Innovation component ' + (p[1] || ''), nisp: 'NISP item ' + (p[1] || ''), other: 'Other activity' }[p[0]] || k;
+           nirf: 'NIRF Innovation component ' + (p[1] || ''), nisp: 'NISP item ' + (p[1] || ''), rnd: 'Prescribed R&D activity ' + (p[1] || ''), other: 'Other activity' }[p[0]] || k;
 }
 
 // checks reports still Pending Verification that are already in Drive

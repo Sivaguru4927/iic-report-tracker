@@ -100,6 +100,27 @@
     ["N9", "Collaboration, co-creation and knowledge exchange with industry and ecosystem partners"],
     ["N10", "Annual entrepreneurial impact assessment of I&E activities"]
   ];
+  // Prescribed R&D activities: [code, sub theme, title, description, level / duration]
+  const RND = [
+    ["R1", "R&D Awareness and Capacity Building", "Faculty & Student R&D Orientation Program", "Workshops or seminars introducing R&D processes, research ethics, funding sources and global best practices", "Half/Full day"],
+    ["R2", "R&D Awareness and Capacity Building", "Annual Research Conclave/Symposium", "Showcase ongoing and completed research projects across departments and facilitate knowledge exchange", "Half/Full day"],
+    ["R3", "R&D Awareness and Capacity Building", "Training on Technology Readiness Level (TRL) and Manufacturing Readiness Level (MRL)", "Training on TRL & MRL for researchers and inventors & ISO certification procedures", "Half/Full day"],
+    ["R4", "R&D Awareness and Capacity Building", "Training on Technology Commercialisation, Licensing and Transfer Practices & Strategy", "Training for researchers and inventors", "Half/Full day"],
+    ["R5", "Cross Disciplinary Thematic Research and Output Enhancement", "Thematic Research based Hackathon/Ideathon in Campus", "Cross-disciplinary hackathons on nationally and industrially relevant problems", "Half/Full day"],
+    ["R6", "Cross Disciplinary Thematic Research and Output Enhancement", "Sponsored/Seed Grant Proposal Writing Workshops", "Guidance and support for preparing and submitting research proposals to funding agencies", "Half/Full day"],
+    ["R7", "Intellectual Property (IP) Generation and Commercialization", "IP Awareness and Patent Filing Workshops", "Training on patents, copyrights, trademarks and research publication ethics, including step-by-step IP filing", "Half/Full day"],
+    ["R8", "Intellectual Property (IP) Generation and Commercialization", "Innovation to Commercialization Boot camps", "Boot camps guiding researchers from lab to market, nurturing entrepreneurial mindsets", "Half/Full day"],
+    ["R9", "Promotion of Deep-Tech based Research & Innovation", "Deep-Tech Innovation Challenge", "Proposals for emerging technology solutions (AI, robotics, clean tech, IoT, biotech, etc.), seed grants and incubation support", "Half/Full day"],
+    ["R10", "Promotion of Deep-Tech based Research & Innovation", "Prototype Development & Validation Clinic", "Clinics for converting ideas into working prototypes and technical validation with experts", "Half/Full day"],
+    ["R11", "Strengthening the Industry-Academia for R&D Collaboration", "Industry R&D Roundtables/Meetups", "Meetings with industry partners on research collaboration, consultancy and internships", "Half/Full day"],
+    ["R12", "Strengthening the Industry-Academia for R&D Collaboration", "Problem Statement Database & Collaborative Research Projects", "Database of real-world industry problems; collaborative research projects with students and faculty", "Half/Full day"],
+    ["R13", "Research Publication and Dissemination", "Research Paper Writing and Journal Publication Support Workshops", "Expert-led training on scientific writing, selecting journals, peer review and avoiding predatory publications", "Half/Full day"],
+    ["R14", "Research Publication and Dissemination", "Publish of Annual R&D Newsletter or Research Digest", "Digital/print newsletter on research achievements, collaborations, IP filings and success stories", "Published Newsletter"],
+    ["R15", "Synergizing & Synchronization of R&D Facilities at Intra & Inter Institutional", "Departmental R&D Facility Mapping and Resource Sharing Policy", "Survey and document R&D infrastructure, equipment and expertise; promote shared use", "Policy Document"],
+    ["R16", "Synergizing & Synchronization of R&D Facilities at Intra & Inter Institutional", "Making Centralized Research Equipment Portal and Access to Facilities", "Online portal of available instruments/facilities and booking procedures", "Online Portal with Equipment List and Service"],
+    ["R17", "Monitoring, Evaluation, and Recognition of Research", "Regular R&D Review Meetings and Progress Tracking", "Monthly/quarterly review meetings to monitor ongoing projects and resolve bottlenecks", "Review Meetings"],
+    ["R18", "Monitoring, Evaluation, and Recognition of Research", "Celebrate an Annual Research Awards and Recognition Ceremony", "Awards for outstanding research papers, patents, impactful projects and collaborative efforts", "Half/Full day"]
+  ];
   const STATUSES = ["Not started", "In progress", "Achieved", "Not applicable"];
   const FACTOR = { "Achieved": 1, "In progress": 0.5, "Not started": 0 };
 
@@ -109,6 +130,7 @@
   const dayKey = md => "day|" + md;
   const nirfKey = c => "nirf|" + c;
   const nispKey = c => "nisp|" + c;
+  const rndKey = c => "rnd|" + c;
   const nirfComp = c => { for (const [pc, pn, w, list] of NIRF) { const x = list.find(l => l[0] === c); if (x) return { pc, pn, w, x }; } return null; };
   function labelOf(key) {
     if (!key) return "";
@@ -118,6 +140,7 @@
     if (p[0] === "day") { const d = DAYS.find(x => x[0] === p[1]); return d ? "Celebration: " + d[1] : ""; }
     if (p[0] === "nirf") { const f = nirfComp(p[1]); return f ? "NIRF Innovation " + f.pc + ": " + f.x[1] : ""; }
     if (p[0] === "nisp") { const i = NISP.findIndex(x => x[0] === p[1]); return i >= 0 ? "NISP " + (i + 1) + ": " + NISP[i][1] : ""; }
+    if (p[0] === "rnd") { const r = RND.find(x => x[0] === p[1]); return r ? "R&D activity " + p[1].slice(1) + ": " + r[2] : ""; }
     return "";
   }
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -127,7 +150,9 @@
   // NIRF Innovation and NISP groups (same in every quarter)
   const nirfNispGroups = selected =>
     NIRF.map(([pc, pn, w, list]) => `<optgroup label="NIRF Innovation – ${pc}: ${esc(pn)}">` + list.map(([c, t]) => opt(nirfKey(c), `${c} · ${esc(t)}`, selected)).join("") + "</optgroup>").join("") +
-    '<optgroup label="NISP – National Innovation and Start-up Policy">' + NISP.map(([c, t], i) => opt(nispKey(c), `NISP ${i + 1} · ${esc(t)}`, selected)).join("") + "</optgroup>";
+    '<optgroup label="NISP – National Innovation and Start-up Policy">' + NISP.map(([c, t], i) => opt(nispKey(c), `NISP ${i + 1} · ${esc(t)}`, selected)).join("") + "</optgroup>" +
+    [...new Set(RND.map(r => r[1]))].map(th => `<optgroup label="Prescribed R&amp;D activities – ${esc(th)}">` +
+      RND.filter(r => r[1] === th).map(([c, , t, , lv]) => opt(rndKey(c), `R&amp;D ${c.slice(1)} · ${esc(t)} (${esc(lv)})`, selected)).join("") + "</optgroup>").join("");
 
   // <option>s for the submission form's "Activity type" dropdown, for the chosen quarter
   function optionsFor(quarter) {
@@ -141,7 +166,7 @@
         days.map(d => `<option value="${dayKey(d[0])}">${dayLabel(d[0])}: ${esc(d[1])}</option>`).join("") + "</optgroup>";
     }
     html += nirfNispGroups("");
-    html += '<optgroup label="Other"><option value="other">Other activity (not in the IIC calendar, NIRF or NISP)</option></optgroup>';
+    html += '<optgroup label="Other"><option value="other">Other activity (not in the IIC calendar, NIRF, NISP or R&amp;D list)</option></optgroup>';
     return html;
   }
   // every type, for the tracker's edit dropdown
@@ -490,5 +515,5 @@
     };
   }
 
-  window.IICFramework = { CAL, DAYS, NIRF, NISP, optionsFor, allOptions, labelOf, render, exportSheets };
+  window.IICFramework = { CAL, DAYS, NIRF, NISP, RND, optionsFor, allOptions, labelOf, render, exportSheets };
 })();
