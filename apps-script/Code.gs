@@ -597,7 +597,7 @@ function reviewOne_(r, blob) {
 function aiRemarks_(v) {
   let t = 'AI check ' + v.score + '/100 – ' + v.decision + '. ';
   if (v.decision === 'Verified') {
-    t += v.fixes.length ? 'Suggestions for future reports: ' + v.fixes.slice(0, 3).map(f => f.replace(/[.\s]+$/, '')).join('; ') + '.' : (v.summary || 'The report meets the IIC format.');
+    return 'Thanks for Submission';     // verified: the AI's notes stay in the AI check box in All reports
   } else {
     t += 'Please correct the following and submit the report again: ' + v.fixes.map((f, i) => (i + 1) + ') ' + f).join(' ');
     if (!v.fixes.length) t += v.checks.filter(c => !c.pass).map((c, i) => (i + 1) + ') ' + c.note).join(' ');

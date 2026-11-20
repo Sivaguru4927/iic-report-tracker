@@ -1,4 +1,5 @@
 // Coordinator tracker: sign in, verify reports, summary, departments
+const THANKS = "Thanks for Submission";
 (function () {
   const { $, esc, sb, byName, QS, VERS } = IIC;
   if (!IIC.configured) { IIC.setupNotice(document.querySelector(".wrap")); return; }
@@ -249,6 +250,7 @@
     const { error } = await sb.from("reports").update(fields).eq("id", id);
     if (error) {
       m.className = "msg err"; m.textContent = IIC.friendlyError(error);
+      if (fields.remarks !== undefined && fields.verification !== undefined) { const ta = document.querySelector(`[data-rem="${CSS.escape(id)}"]`); if (ta) ta.value = r.remarks || ""; }
       if (el) { el.value = fields.verification !== undefined ? r.verification : fields.iic_activity !== undefined ? (r.iic_activity || "") : (r.remarks || ""); if (el.dataset.ver) el.className = "vsel v-" + IIC.verClass(el.value); }
       return;
     }
@@ -260,7 +262,14 @@
     const ac = e.target.closest("[data-act]");
     if (ac) { patchReport(ac.dataset.act, { iic_activity: ac.value || null }, ac); return; }
     const v = e.target.closest("[data-ver]");
-    if (v) { v.className = "vsel v-" + IIC.verClass(v.value); patchReport(v.dataset.ver, { verification: v.value }, v); return; }
+    if (v) {
+      v.className = "vsel v-" + IIC.verClass(v.value);
+      const f = { verification: v.value };
+      // Verified: "Thanks for Submission" goes in Remarks unless the coordinator has written something of their own
+      const ta = document.querySelector(`[data-rem="${CSS.escape(v.dataset.ver)}"]`);
+      if (v.value === "Verified" && ta && (!ta.value.trim() || /^(Late entry added by|AI check )/.test(ta.value.trim()))) { f.remarks = THANKS; ta.value = THANKS; }
+      patchReport(v.dataset.ver, f, v); return;
+    }
     const t = e.target.closest("[data-rem]");
     if (t) { const val = t.value.trim(), r = state.reports.find(x => x.id === t.dataset.rem); if (r && val !== (r.remarks || "")) patchReport(t.dataset.rem, { remarks: val }, t); }
   });
