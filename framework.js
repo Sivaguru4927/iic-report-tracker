@@ -474,6 +474,44 @@
       `<div class="gx-split">${cols("Celebrations due and done each month", dayCols, 2, [["ok", "Celebrated"], ["bad", "Missed"], ["neutral", "Upcoming"]], "Months without a column have no listed day.")}${focus(df.shown, "Nothing missed and nothing due in the next 60 days.", df.more)}</div>`,
       `All ${DAYS.length} days`, `<div class="scroll"><table class="fw-tbl"><thead><tr><th>Date</th><th>Celebration</th><th>Quarter</th><th class="n">Reports</th><th>Departments</th><th>Status</th></tr></thead><tbody>${dayRows}</tbody></table></div>`);
 
+    /* ===== 3b. Prescribed R&D activities ===== */
+    const themes = [...new Set(RND.map(r => r[1]))];
+    const elapsed = mStats.filter(m => m.st !== "future").length;          // months of the IIC year so far
+    const pace = Math.min(RND.length, Math.round(RND.length * elapsed / 12));
+    const rItems = RND.map(([c, th, t, d, lv], i) => {
+      const l = reps.filter(r => actOf(r) === rndKey(c));
+      const lastM = l.map(monthOf).sort().pop() || "";
+      return { c, th, t, d, lv, i, n: l.length, depts: [...new Set(l.map(r => r.dept))], lastM, done: l.length > 0 };
+    });
+    const rDone = rItems.filter(x => x.done).length;
+    const thStats = themes.map(th => { const l = rItems.filter(x => x.th === th); return { th, l, d: l.filter(x => x.done).length }; });
+    const thCovered = thStats.filter(x => x.d > 0).length;
+    const rReps = reps.filter(r => actOf(r).startsWith("rnd|"));
+    const rDepts = new Set(rReps.map(r => dk(r.type, r.dept))).size;
+    const rMonthly = mStats.map(m => {
+      const l = rReps.filter(r => monthOf(r) === m.key);
+      return { lab: m.short, now: m.st === "current", future: m.st === "future", top: m.st === "future" ? "" : l.length, flag: m.st === "past" && !l.length,
+        tip: `${m.label}: ${l.length} report(s) on prescribed R&D activities`, segs: [{ v: l.length, cls: "accent", t: l.length + " report(s)" }] };
+    });
+    const thRows = thStats.map(x => ({ lab: esc(x.th), val: x.d + "/" + x.l.length, tip: `${x.th}: ${x.d} of ${x.l.length} done`,
+      segs: [{ v: x.d / x.l.length, cls: "ok", t: x.d + " done" }, { v: (x.l.length - x.d) / x.l.length, cls: "bad", t: (x.l.length - x.d) + " not done" }] }));
+    const rFocus = [
+      ...thStats.filter(x => !x.d).map(x => ({ cls: "bad", tag: "Sub-theme not started", text: esc(x.th), sub: x.l.map(y => "R&amp;D " + (y.i + 1) + " " + esc(y.t)).join(" · ") })),
+      ...rItems.filter(x => !x.done && thStats.find(y => y.th === x.th).d > 0).map(x => ({ cls: "warn", tag: "Not done", text: `R&amp;D ${x.i + 1}. ${esc(x.t)}`, sub: `${esc(x.th)} · ${esc(x.lv)}` }))
+    ];
+    const rfx = take(rFocus, 8);
+    const rRows = thStats.map(x => `<tr class="fw-group"><td colspan="6"><b>${esc(x.th)}</b> <span class="fw-prog">${x.d} of ${x.l.length} done</span></td></tr>` +
+      x.l.map(y => `<tr><td class="n">${y.i + 1}</td><td>${esc(y.t)}<div class="hint">${esc(y.d)}</div></td><td>${esc(y.lv)}</td><td class="n"><b>${y.n}</b></td>
+        <td style="min-width:160px">${y.depts.length ? esc(y.depts.join(", ")) : '<span class="hint">—</span>'}${y.lastM ? `<div class="hint">last: ${monthName(y.lastM)}</div>` : ""}</td><td>${y.done ? pill("ok", "Done") : pill("bad", "Not done")}</td></tr>`).join("")).join("");
+    const secRnd = frame("rnd", `Prescribed R&amp;D activities · ${yl}`, `${rDone} of ${RND.length} done`,
+      `The 18 prescribed R&amp;D activities in 8 sub-themes. An activity is done once a department submits a report with it chosen as the Activity type${scope}. To spread them over the year, about <b>${pace}</b> should be done by now.`,
+      kpis([[rDone + "/" + RND.length, "activities done", rDone >= pace ? "ok" : rDone >= pace / 2 ? "warn" : "bad"], [thCovered + "/" + themes.length, "sub-themes covered", thCovered === themes.length ? "ok" : "warn"],
+            [Math.max(0, pace - rDone), "behind the pace for this point of the year", pace - rDone > 0 ? "bad" : "ok"], [rDepts + "/" + T, "departments contributing", ""]]) +
+      `<div class="gx-split"><div class="gx-stackfig">${cols("Reports on R&amp;D activities per month", rMonthly, Math.max(1, ...rMonthly.map(c => +c.top || 0)), null, `${rReps.length} report(s) this year. Red labels mark past months with none.`)}
+        ${hbars("Done by sub-theme", thRows, [["ok", "Done"], ["bad", "Not done"]])}</div>
+        ${focus(rfx.shown, "All 18 R&amp;D activities have been done this year.", rfx.more)}</div>`,
+      "All 18 R&amp;D activities", `<div class="scroll"><table class="fw-tbl"><thead><tr><th class="n">#</th><th>Activity</th><th>Level / duration</th><th class="n">Reports</th><th>Departments</th><th>Status</th></tr></thead><tbody>${rRows}</tbody></table></div>`);
+
     /* ===== shared editing for NISP and NIRF (stored per IIC year) ===== */
     const comp = state.compliance || {};
     const get = code => comp[Y + ":" + code] || {};
@@ -581,7 +619,7 @@
       `All ${comps.length} components · status, count, target and evidence`,
       `<div class="scroll"><table class="fw-tbl"><thead><tr><th class="n">#</th><th>Component</th><th class="n">Reports</th><th>Status</th><th>Count / value</th><th>Target month</th><th>Remarks / evidence</th><th>Updated</th></tr></thead><tbody>${nirfRows}</tbody></table></div>`, true);
 
-    root.innerHTML = secMonth + secCal + secDays + secNisp + secNirf;
+    root.innerHTML = secMonth + secCal + secDays + secRnd + secNisp + secNirf;
   }
 
   async function onChange(e) {
