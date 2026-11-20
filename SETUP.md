@@ -284,3 +284,17 @@ green *Formatted* mark. Run `supabase-update-format.sql` once so the mark is sav
 | Log says "Sent to Google" but no email arrives | The secret in `Code.gs` doesn't match the Emails tab, or the script wasn't redeployed after editing. Fix and redeploy as a New version. Also check Spam. |
 | Log shows "Failed (401/403)" | The deployment's "Who has access" isn't **Anyone**. If your college account doesn't allow "Anyone", create the script from a personal Gmail account instead (emails will come from that address). |
 | No reminders arrived on the 20th | The Supabase free project may have been paused. Open the tracker weekly; use **Send this month's reminders now** to catch up. |
+
+
+## NIRF / NISP classification of reports
+
+Every report is classified under the NIRF Innovation Rankings 2025 components and the NISP 2019 items it supports.
+**All reports** has a *NIRF / NISP* column (blue chips = NIRF components, purple = NISP items; hover for the full name)
+and a filter for any NIRF parameter or NISP item; the Excel download has the same column. The Dashboard's NIRF and
+NISP sections count classified reports automatically.
+
+- **By the AI agent** (Apps Script, Step 10): when a report is checked, the AI also chooses the NIRF components and NISP
+  items from the report's content. Shown as "by AI agent".
+- **Automatically from the title and activity type** for every other report (old ones, and the artifact version, which
+  has no AI). Shown as "auto (title / activity type)".
+- A NIRF component or NISP item chosen by the department in *Activity type* is always included.

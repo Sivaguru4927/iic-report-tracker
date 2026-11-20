@@ -297,3 +297,11 @@ a.btn{text-decoration:none;display:inline-block;white-space:nowrap}
 .fmt-note{display:block;margin-top:4px;color:var(--ok);font-size:12.5px}
 .fmt-note a{color:inherit;font-weight:600}
 .fmt-pill{margin-top:4px;display:inline-block;font-size:11px}
+
+/* NIRF / NISP classification chips (All reports) */
+.pol{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.pol-chip{font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:99px;white-space:nowrap;cursor:help}
+.pol-nirf{background:#e4ecf7;color:#1f4f8a}
+.pol-nisp{background:#efe6f7;color:#5d2f86}
+.pol-src{flex-basis:100%;font-size:11px;color:var(--muted)}
+@media (prefers-color-scheme:dark){.pol-nirf{background:#1c2c42;color:#9cc0ef}.pol-nisp{background:#2c2040;color:#cfaef0}}

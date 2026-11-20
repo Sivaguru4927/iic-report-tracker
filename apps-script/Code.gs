@@ -368,6 +368,44 @@ const AI_CHECKS_ = [
   ['T19', 'CONTENT RELEVANT TO THE TITLE: the Objective, Brief Description, Key Highlights, Benefits, Outcome, the speaker\'s topic and the photo captions are all about the subject named in the event title (e.g. a report titled "Design Thinking Workshop" describes design thinking). Fails if the content is about a different subject, is generic text that could fit any event, or is copied from another event\'s report', true],
   ['T20', 'The report content fits the Theme written in the report and the Activity type selected on the submission', false]
 ];
+// NIRF Innovation Rankings 2025 components and NISP 2019 items each report is classified under (same codes as framework.js)
+const NIRF_COMPONENTS_ = [
+  ["FSI.SU", "Ventures / start-ups recognised by DPIIT / Startup India (SU) – No. recognised in the previous 3 years"],
+  ["FSI.VCI", "Ventures / start-ups that received VC investment (VCI) – Average VC investment ÷ no. of start-ups funded (3 yrs)"],
+  ["FSI.SF", "Seed funding received from Government organisations (SF) – Average seed funding ÷ no. of start-ups funded (3 yrs)"],
+  ["FSI.FDII", "FDI investment in ventures / start-ups (FDII) – Average FDI ÷ no. of start-ups with FDI (3 yrs)"],
+  ["FSI.IG", "Innovation grant received from Government organisations (IG) – Average innovation grant received (3 yrs)"],
+  ["IA.ITRL", "Innovations at various Technology Readiness Levels (ITRL) – No. of innovations at TRL stages"],
+  ["IA.NVS", "Ventures / start-ups with a turnover of ₹50 lakh (NVS) – Ventures at ₹50 lakh turnover ÷ total ventures"],
+  ["IA.AFF", "Alumni founders of Forbes / Fortune 500 companies (AFF) – No. of such alumni founders"],
+  ["RIO.PU", "Publications in SCI (PU) – Weighted publications ÷ faculty (FSR 1:15)"],
+  ["RIO.CI", "Quality of publications in SCI – citations (CI) – Citation count (3 yrs) ÷ faculty"],
+  ["RIO.IPP", "Patents published (IPR – IPP) – No. published in the previous 3 years"],
+  ["RIO.IPG", "Patents granted (IPR – IPG) – No. granted in the previous 3 years"],
+  ["RIO.PCTT", "Patent commercialisation & technology transfer (PCTT) – No. commercialised / transferred (3 yrs)"],
+  ["PII.PI", "Pre-incubation: expenditure and participations (PI) – Average pre-incubation spend ÷ no. of participations (3 yrs)"],
+  ["PII.IE", "Incubation expenditure (IIE – IE) – Average incubation expenditure (3 yrs)"],
+  ["PII.II", "Incubation income (IIE – II) – Average income from incubation (3 yrs)"],
+  ["PII.FDP", "FDPs in Innovation, Entrepreneurship and IPR (FDP) – No. of FDPs in the previous 3 years"],
+  ["PII.CCI", "Credit courses in Innovation offered (CCI) – No. of credit courses in the previous 3 years"],
+  ["AIE.NISP", "Registered on the NISP portal for I&E policy adoption (NISP) – Registration on the NISP portal"],
+  ["AIE.IIC", "Annual performance of the Institution's Innovation Council (IICs) – IIC star rating / score for the year"],
+  ["AIE.KAPILA", "Participation in the KAPILA portal (KAPILA) – IP applications / awareness via KAPILA"],
+  ["AIE.SIH", "Participation in Smart India Hackathon (SIH) – Teams registered / shortlisted / winners"],
+  ["PR.PR", "Peer perception: academic peers and employers (PR) – NIRF survey; build visibility with peers and employers"]
+];
+const NISP_ITEMS_ = [
+  ["N1", "Registered on the NISP portal (nisp.mic.gov.in)"],
+  ["N2", "I&E policy formulated and approved by the Governing Body"],
+  ["N3", "Policy implemented and implementation details uploaded on the NISP portal"],
+  ["N4", "Strategy and governance: I&E in the institution's vision and mission; dedicated I&E budget (at least 1% of the total budget)"],
+  ["N5", "Pre-incubation and incubation support available to students and faculty"],
+  ["N6", "IP ownership and revenue-sharing norms for innovations and technologies developed at the institution"],
+  ["N7", "Norms for faculty and student start-ups (leave / semester break, equity, credits for start-up work)"],
+  ["N8", "Pedagogy and learning: credit / elective courses on innovation and entrepreneurship"],
+  ["N9", "Collaboration, co-creation and knowledge exchange with industry and ecosystem partners"],
+  ["N10", "Annual entrepreneurial impact assessment of I&E activities"]
+];
 const AI_RELEVANCE_MIN_ = 60;   // relevance of the content to the title (0–100); below this the report is returned (T19)
 const TITLE_WORDS_ = /innovat|entrepreneur|incubat|start[\s-]?ups?\b|\bipr\b|intellectual property/i;
 const PLACEHOLDERS_ = [/_{4,}/, /dd\.mm\.yyyy/i, /00:00\s*AM\s*\/\s*PM/i, /\(\s*Eg\s*:/i, /Student No\.\s*\/\s*Faculty No\./i, /Stu\.No\.\s*\/\s*FacultyNo/i];
@@ -454,6 +492,15 @@ const AI_SYSTEM_ = [
   'Give a relevance score from 0 (unrelated to the title) to 100 (every section is clearly about the title), and list the off-topic sections.',
   'Also check that the event title in the report and the report title in the submission details describe the same event.',
   '',
+  'NIRF / NISP CLASSIFICATION: say which NIRF Innovation Rankings components and which NISP (National Innovation and Start-up Policy)',
+  'items this activity supports or provides evidence for, using only the codes below. Choose only those the report clearly supports',
+  '(usually 1 to 4 of each); an empty list is fine. For example: a patent filing workshop → RIO.IPP and N6; an ideation / design thinking',
+  'workshop → PII.PI and N8; a start-up pitch to investors → FSI.VCI and N7; an industry visit → PR.PR and N9; an FDP on I&E → PII.FDP and N8.',
+  'NIRF components:',
+  NIRF_COMPONENTS_.map(c => c[0] + ' ' + c[1]).join('\n'),
+  'NISP items:',
+  NISP_ITEMS_.map(c => c[0] + ' ' + c[1]).join('\n'),
+  '',
   'CHECKS:',
   AI_CHECKS_.map(c => c[0] + ' ' + c[1]).join('\n'),
   '',
@@ -461,6 +508,7 @@ const AI_SYSTEM_ = [
   '"score" is a whole number 0-100; "off_topic" and "fixes" may be empty lists):',
   '{"checks":[{"id":"T1","pass":true,"note":"short reason"},{"id":"T2","pass":false,"note":"short reason"}],',
   ' "relevance":{"subject":"subject of the event title","score":85,"off_topic":["Section name: what it is about instead"],"title_match":true},',
+  ' "classify":{"nirf":["PII.PI"],"nisp":["N8"],"reason":"one short sentence"},',
   ' "summary":"one formal sentence on the report overall",',
   ' "fixes":["a correction the department must make, as a short instruction"]}',
   'Keep each note under 25 words. Inside text values never use double quotes (use single quotes instead) and no line breaks.'
@@ -509,6 +557,11 @@ function reviewOne_(r, blob) {
   else if (!relevance.title_match)
     force('T19', 'The event title in the report does not match the report title given on the submission ("' + String(r.title).slice(0, 80) + '").',
           'Make the event title in the report the same as the report title entered on the submission page.');
+  // NIRF / NISP classification (only known codes are kept)
+  const cl = res.classify || {}, NC = NIRF_COMPONENTS_.map(c => c[0]), SC = NISP_ITEMS_.map(c => c[0]);
+  const classify = { nirf: [...new Set((cl.nirf || []).map(String))].filter(c => NC.indexOf(c) >= 0).slice(0, 6),
+                     nisp: [...new Set((cl.nisp || []).map(String))].filter(c => SC.indexOf(c) >= 0).slice(0, 6),
+                     reason: String(cl.reason || '').slice(0, 200) };
   let score = 100;
   checks.forEach(c => { if (!c.pass) score -= c.critical ? 15 : 5; });
   score = Math.max(0, score);
@@ -517,7 +570,7 @@ function reviewOne_(r, blob) {
   const fixes = (res.fixes || []).map(String).filter(Boolean).slice(0, 8);
   fixes.unshift(...forced.filter(f => !fixes.some(x => x.slice(0, 30) === f.slice(0, 30))));
   return { score: score, decision: decision, checks: checks, fixes: fixes, summary: String(res.summary || '').slice(0, 300),
-           relevance: relevance, words: d.words, images: d.images, model: AI_PROVIDER + ':' + AI_MODEL };
+           relevance: relevance, classify: classify, words: d.words, images: d.images, model: AI_PROVIDER + ':' + AI_MODEL };
 }
 
 function aiRemarks_(v) {
@@ -574,6 +627,7 @@ function testAiCheck() {
   console.log('Report: ' + rows[0].title + '\nScore ' + v.score + ' – ' + v.decision + '\n' +
     'Relevance to the title "' + v.relevance.subject + '": ' + v.relevance.score + '/100' +
     (v.relevance.off_topic.length ? ' — off-topic: ' + v.relevance.off_topic.join('; ') : '') + '\n' +
+    'NIRF: ' + (v.classify.nirf.join(', ') || '—') + ' · NISP: ' + (v.classify.nisp.join(', ') || '—') + (v.classify.reason ? ' (' + v.classify.reason + ')' : '') + '\n' +
     v.checks.map(c => (c.pass ? '✓ ' : '✕ ') + c.id + (c.critical ? ' (critical) ' : ' ') + c.note).join('\n') +
     '\n\nRemarks the department would get:\n' + aiRemarks_(v) + '\n\n(Test only: nothing was saved.)');
 }

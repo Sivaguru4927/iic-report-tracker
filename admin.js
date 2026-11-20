@@ -178,7 +178,7 @@
     const t = $("r_type").value, d = $("r_dept").value, q = $("r_q").value, v = $("r_ver").value;
     const lf = $("r_late") ? $("r_late").value : "";
     return state.reports.filter(r => (!t || r.type === t) && (!d || r.dept === d) && (!q || r.quarter === q) && (!v || r.verification === v) && (!$("r_query").value || !!(r.query || "").trim())
-        && (!lf || (lf === "late") === lateInfo(r).late))
+        && (!lf || (lf === "late") === lateInfo(r).late) && IICFramework.policyMatch(r, $("r_pol") ? $("r_pol").value : ""))
       .sort((a, b) => byName(a.type, b.type) || byName(a.dept, b.dept) || a.quarter.localeCompare(b.quarter) || (a.month || "").localeCompare(b.month || "") || (b.created_at || "").localeCompare(a.created_at || ""));
   }
   // AI report check (Apps Script, Step 10): score, decision and what failed
@@ -217,18 +217,19 @@
     const list = filteredReports();
     if (!state.reports.length) { tbl.innerHTML = '<div class="empty">No reports yet. They appear here as departments submit them from the submission page.</div>'; return; }
     if (!list.length) { tbl.innerHTML = '<div class="empty">No reports match these filters.</div>'; return; }
-    tbl.innerHTML = `<p class="hint" style="margin-bottom:8px">${list.length} report${list.length > 1 ? "s" : ""}</p><table class="rep"><thead><tr><th>Type</th><th>Department</th><th>Faculty</th><th>Mobile</th><th>Quarter</th><th>Month</th><th>Report title</th><th>Report file</th><th>Submitted on</th><th>Late submission</th><th>Query from department</th><th>Submission</th><th>Verification</th><th>Remarks</th><th></th></tr></thead><tbody>` +
+    tbl.innerHTML = `<p class="hint" style="margin-bottom:8px">${list.length} report${list.length > 1 ? "s" : ""}</p><table class="rep"><thead><tr><th>Type</th><th>Department</th><th>Faculty</th><th>Mobile</th><th>Quarter</th><th>Month</th><th>Report title</th><th>NIRF / NISP</th><th>Report file</th><th>Submitted on</th><th>Late submission</th><th>Query from department</th><th>Submission</th><th>Verification</th><th>Remarks</th><th></th></tr></thead><tbody>` +
       list.map(r => {
         const opts = VERS.map(v => `<option${v === r.verification ? " selected" : ""}>${esc(v)}</option>`).join("");
         return `<tr><td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.dept)}</td><td>${esc(r.faculty)}${r.email ? `<div class="hint" style="overflow-wrap:anywhere">${esc(r.email)}</div>` : ""}</td><td style="font-variant-numeric:tabular-nums">${esc(r.mobile)}</td>
-          <td style="white-space:nowrap">${esc(IIC.qShort(r.quarter))}</td><td style="white-space:nowrap">${esc(IIC.monthLabel(r.month) || "—")}</td><td style="min-width:220px">${esc(r.title)}<div><select class="actsel" data-act="${esc(r.id)}" aria-label="IIC activity for ${esc(r.title)}">${IICFramework.allOptions(r.iic_activity || "")}</select></div></td><td>${fileCell(r)}</td>
+          <td style="white-space:nowrap">${esc(IIC.qShort(r.quarter))}</td><td style="white-space:nowrap">${esc(IIC.monthLabel(r.month) || "—")}</td><td style="min-width:220px">${esc(r.title)}<div><select class="actsel" data-act="${esc(r.id)}" aria-label="IIC activity for ${esc(r.title)}">${IICFramework.allOptions(r.iic_activity || "")}</select></div></td><td style="min-width:170px">${IICFramework.policyCell(r)}</td><td>${fileCell(r)}</td>
           <td style="white-space:nowrap">${IIC.day(r.created_at)}</td><td style="white-space:nowrap">${lateCell(r)}</td><td style="min-width:160px">${r.query ? `<div class="query">${esc(r.query)}</div>` : '<span class="hint">—</span>'}</td><td>${IIC.subPill(r.submission)}</td>
           <td><select class="vsel v-${IIC.verClass(r.verification)}" data-ver="${esc(r.id)}" aria-label="Verification status for ${esc(r.title)}">${opts}</select>${aiCell(r)}</td>
           <td><textarea class="rem" rows="2" maxlength="1000" data-rem="${esc(r.id)}" aria-label="Remarks for ${esc(r.title)}" placeholder="Add remarks">${esc(r.remarks)}</textarea></td>
           <td><button class="btn danger small" data-del-report="${esc(r.id)}">Delete</button></td></tr>`;
       }).join("") + "</tbody></table>";
   }
-  ["r_type", "r_dept", "r_q", "r_ver", "r_query", "r_late"].forEach(id => $(id).addEventListener("change", renderReports));
+  if ($("r_pol")) $("r_pol").innerHTML = IICFramework.policyFilterOptions();
+  ["r_type", "r_dept", "r_q", "r_ver", "r_query", "r_late", "r_pol"].forEach(id => $(id).addEventListener("change", renderReports));
 
   async function patchReport(id, fields, el) {
     const m = $("repMsg"), r = state.reports.find(x => x.id === id); if (!r) return;
@@ -453,9 +454,9 @@
   }
 
   /* ---------- Excel + PDF downloads ---------- */
-  const REP_HEAD = ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Email", "Quarter", "Month", "Activity type", "Report title", "Report file", "Submitted on", "Late submission", "Submission", "Verification", "Remarks", "Queries / Difficulties", "Drive link", "AI check"];
+  const REP_HEAD = ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Email", "Quarter", "Month", "Activity type", "NIRF / NISP classification", "Report title", "Report file", "Submitted on", "Late submission", "Submission", "Verification", "Remarks", "Queries / Difficulties", "Drive link", "AI check"];
   function reportRows() {
-    return filteredReports().map((r, i) => [i + 1, r.type, r.dept, r.faculty, r.mobile, r.email || "", r.quarter, IIC.monthLabel(r.month), IICFramework.labelOf(r.iic_activity), r.title, r.file_name || "", IIC.day(r.created_at), lateInfo(r).late ? "Late (" + lateInfo(r).days + " days; due " + lateInfo(r).deadline + ")" : "On time", r.submission, r.verification, r.remarks || "", r.query || "", r.drive_url || "", r.ai_checked_at ? r.ai_score + "/100 " + (r.ai_decision || "") : ""]);
+    return filteredReports().map((r, i) => [i + 1, r.type, r.dept, r.faculty, r.mobile, r.email || "", r.quarter, IIC.monthLabel(r.month), IICFramework.labelOf(r.iic_activity), IICFramework.policyText(r), r.title, r.file_name || "", IIC.day(r.created_at), lateInfo(r).late ? "Late (" + lateInfo(r).days + " days; due " + lateInfo(r).deadline + ")" : "On time", r.submission, r.verification, r.remarks || "", r.query || "", r.drive_url || "", r.ai_checked_at ? r.ai_score + "/100 " + (r.ai_decision || "") : ""]);
   }
   function filterLabel() {
     const parts = [["r_type", "Aided & SF"], ["r_dept", "All departments"], ["r_q", "All quarters"], ["r_ver", "Any verification status"]]

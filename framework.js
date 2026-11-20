@@ -181,6 +181,98 @@
     return html;
   }
 
+  /* ---------- NIRF Innovation / NISP classification of each report ----------
+     1) the AI agent's classification (Apps Script, ai_review.classify) when the report has been checked,
+     2) otherwise rules on the report title and its activity type (works for every report, old and new),
+     plus the NIRF component / NISP item the department chose in "Activity type". */
+  const NIRF_RULES = [
+    [/startup india|dpiit|start-?up recogni/i, "FSI.SU"],
+    [/venture capital|\bvc\b|investor|angel|pitch(ing)? (deck|day|fest|competition)|funding pitch/i, "FSI.VCI"],
+    [/seed (fund|grant|money)|sisfs|nidhi|\bbig\b grant|funding agenc|grant proposal|fund ?raising|sponsored/i, "FSI.SF"],
+    [/innovation grant|government grant|grant scheme|ivp|innovation voucher/i, "FSI.IG"],
+    [/prototype|proof of concept|\bpoc\b|\btrl\b|technology readiness|product (development|design)|innovation (expo|exhibition|showcase)|demo day|deep-?tech/i, "IA.ITRL"],
+    [/turnover|revenue model|scale-?up|scaling/i, "IA.NVS"],
+    [/alumni (founder|entrepreneur)|alumni connect|alumni talk/i, "IA.AFF"],
+    [/research paper|publication|journal|scientific writing|scopus|\bsci\b|manuscript/i, "RIO.PU"],
+    [/citation/i, "RIO.CI"],
+    [/patent|\bipr\b|intellectual property|copyright|trade ?mark|design registration|kapila/i, "RIO.IPP"],
+    [/patent grant/i, "RIO.IPG"],
+    [/technology transfer|tech transfer|commerciali[sz]|licens/i, "RIO.PCTT"],
+    [/pre-?incubat|ideation|ideathon|idea (pitch|competition|contest|generation)|hackathon|boot ?camp|design thinking|business (model|plan|canvas)|problem (solving|identification)|start-?up|entrepreneur|e-?cell|mentor/i, "PII.PI"],
+    [/incubat(ion|or|ee)(?! council)/i, "PII.IE"],
+    [/\bfdp\b|faculty development|faculty (training|orientation)/i, "PII.FDP"],
+    [/credit course|elective|curriculum|value added course|certificate course/i, "PII.CCI"],
+    [/\bnisp\b|i&e policy|innovation (and|&) (start-?up|entrepreneurship) policy|start-?up policy/i, "AIE.NISP"],
+    [/kapila/i, "AIE.KAPILA"],
+    [/smart india hackathon|\bsih\b/i, "AIE.SIH"],
+    [/conclave|summit|symposium|industry (meet|connect|interaction|visit)|alumni meet|exposure visit|field visit|industrial visit|media/i, "PR.PR"]
+  ];
+  const NISP_RULES = [
+    [/\bnisp\b|i&e policy|start-?up policy|innovation policy/i, "N1"],
+    [/policy (implementation|implemented)/i, "N3"],
+    [/budget|vision|mission|governance|strategy meet/i, "N4"],
+    [/pre-?incubat|incubat(ion|or|ee)(?! council)|mentor|start-?up support|prototype|proof of concept/i, "N5"],
+    [/patent|\bipr\b|intellectual property|copyright|trade ?mark|technology transfer|licens|commerciali[sz]/i, "N6"],
+    [/start-?up|venture|founder|e-?cell|seed fund|investor|(student|faculty) entrepreneur/i, "N7"],
+    [/workshop|seminar|session|training|boot ?camp|course|elective|curriculum|\bfdp\b|faculty development|lecture|webinar|talk|awareness|orientation|competition|hackathon|ideathon|design thinking|skill/i, "N8"],
+    [/industry|\bmou\b|collaborat|ecosystem|visit|exposure|alumni|partner|roundtable|meetup|conclave|summit/i, "N9"],
+    [/impact assessment|survey|feedback analysis|annual report|review meeting|progress tracking/i, "N10"]
+  ];
+  // the activity type a department chose also says which NIRF / NISP areas a report supports
+  const ACT_POLICY = {
+    rnd: { R1: [["PII.FDP"], ["N8"]], R2: [["RIO.PU", "PR.PR"], ["N9"]], R3: [["IA.ITRL"], ["N8"]], R4: [["RIO.PCTT"], ["N6"]], R5: [["PII.PI", "AIE.SIH"], ["N8"]],
+           R6: [["FSI.SF", "FSI.IG"], ["N8"]], R7: [["RIO.IPP", "AIE.KAPILA"], ["N6"]], R8: [["PII.PI", "RIO.PCTT"], ["N5", "N7"]], R9: [["IA.ITRL", "PII.PI"], ["N5"]],
+           R10: [["IA.ITRL"], ["N5"]], R11: [["PR.PR"], ["N9"]], R12: [["PII.PI"], ["N9"]], R13: [["RIO.PU", "RIO.CI"], ["N8"]], R14: [["PR.PR"], ["N10"]],
+           R15: [[], ["N4", "N9"]], R16: [[], ["N4", "N9"]], R17: [[], ["N10"]], R18: [["PR.PR"], ["N10"]] }
+  };
+  const NIRF_CODES = new Set(NIRF.flatMap(p => p[3].map(c => c[0]))), NISP_CODES = new Set(NISP.map(x => x[0]));
+  const clsCache = new WeakMap();
+  function classify(r) {
+    if (!r) return { nirf: [], nisp: [], src: "" };
+    if (clsCache.has(r)) return clsCache.get(r);
+    const act = actOf(r), p = act.split("|"), nirf = new Set(), nisp = new Set();
+    const ai = r.ai_review && r.ai_review.classify;
+    let src = "rules";
+    if (ai && (Array.isArray(ai.nirf) || Array.isArray(ai.nisp))) {
+      (ai.nirf || []).forEach(c => NIRF_CODES.has(c) && nirf.add(c)); (ai.nisp || []).forEach(c => NISP_CODES.has(c) && nisp.add(c)); src = "ai";
+    } else {
+      const text = [r.title || "", /^(cal|day|rnd)\|/.test(act) ? labelOf(act) : ""].join(" · ");
+      NIRF_RULES.forEach(([rx, c]) => rx.test(text) && nirf.add(c));
+      NISP_RULES.forEach(([rx, c]) => rx.test(text) && nisp.add(c));
+      if (p[0] === "rnd" && ACT_POLICY.rnd[p[1]]) { ACT_POLICY.rnd[p[1]][0].forEach(c => nirf.add(c)); ACT_POLICY.rnd[p[1]][1].forEach(c => nisp.add(c)); }
+      if (p[0] === "cal" || p[0] === "day") nirf.add("AIE.IIC");         // IIC calendar activities count towards the IIC's annual performance
+    }
+    if (p[0] === "nirf" && NIRF_CODES.has(p[1])) nirf.add(p[1]);
+    if (p[0] === "nisp" && NISP_CODES.has(p[1])) nisp.add(p[1]);
+    const order = [...NIRF_CODES], norder = [...NISP_CODES];
+    const out = { nirf: [...nirf].sort((a, b) => order.indexOf(a) - order.indexOf(b)), nisp: [...nisp].sort((a, b) => norder.indexOf(a) - norder.indexOf(b)), src };
+    clsCache.set(r, out); return out;
+  }
+  const nirfName = c => { const f = nirfComp(c); return f ? f.x[1] : c; };
+  const nispName = c => { const i = NISP.findIndex(x => x[0] === c); return i >= 0 ? "NISP " + (i + 1) + ": " + NISP[i][1] : c; };
+  // the chips shown in the "NIRF / NISP" column
+  function policyCell(r) {
+    const k = classify(r);
+    if (!k.nirf.length && !k.nisp.length) return '<span class="hint">Not classified</span>';
+    return `<div class="pol">${k.nirf.map(c => `<span class="pol-chip pol-nirf" title="NIRF Innovation · ${esc(nirfName(c))}">NIRF ${esc(c)}</span>`).join("")}` +
+      `${k.nisp.map(c => `<span class="pol-chip pol-nisp" title="${esc(nispName(c))}">NISP ${NISP.findIndex(x => x[0] === c) + 1}</span>`).join("")}` +
+      `<span class="pol-src">${k.src === "ai" ? "by AI agent" : "auto (title / activity type)"}</span></div>`;
+  }
+  const policyText = r => { const k = classify(r); return [k.nirf.map(c => "NIRF " + c + " " + nirfName(c)).join("; "), k.nisp.map(nispName).join("; ")].filter(Boolean).join(" | "); };
+  // filter: "", "nirf", "nirf:FSI" (parameter), "nisp", "nisp:N6", "none"
+  function policyMatch(r, f) {
+    if (!f) return true;
+    const k = classify(r), [a, b] = f.split(":");
+    if (a === "none") return !k.nirf.length && !k.nisp.length;
+    if (a === "nirf") return b ? k.nirf.some(c => c.split(".")[0] === b) : k.nirf.length > 0;
+    if (a === "nisp") return b ? k.nisp.includes(b) : k.nisp.length > 0;
+    return true;
+  }
+  const policyFilterOptions = () => '<option value="">NIRF &amp; NISP: all reports</option><option value="nirf">Any NIRF Innovation parameter</option>' +
+    NIRF.map(([pc, pn]) => `<option value="nirf:${pc}">NIRF ${pc} · ${esc(pn)}</option>`).join("") +
+    '<option value="nisp">Any NISP item</option>' + NISP.map(([c, t], i) => `<option value="nisp:${c}">NISP ${i + 1} · ${esc(t)}</option>`).join("") +
+    '<option value="none">Not classified</option>';
+
   /* ---------------- Dashboard: gap analysis ----------------
      Every area uses the same frame: score → monthly chart → "where to concentrate" → detail table. */
   const actOf = r => r.iic_activity || r.iicActivity || "";
@@ -257,7 +349,8 @@
     const Y = o.year, type = o.type || "", basis = o.basis || "all", yl = Y + "–" + String((Y + 1) % 100).padStart(2, "0");
     const MS = monthsOf(Y), qn = quarterNow(Y), today = new Date(); today.setHours(0, 0, 0, 0);
     const reps = state.reports.filter(r => counted(r, basis) && (!type || r.type === type) && monthOf(r) && ayOfMonth(monthOf(r)) === Y);
-    const tally = key => { const l = reps.filter(r => actOf(r) === key); return { n: l.length, depts: [...new Set(l.map(r => r.dept))] }; };
+    const inKey = (r, key) => { if (actOf(r) === key) return true; const p = key.split("|"), k = (p[0] === "nirf" || p[0] === "nisp") ? classify(r) : null; return !!k && k[p[0]].includes(p[1]); };
+    const tally = key => { const l = reps.filter(r => inKey(r, key)); return { n: l.length, depts: [...new Set(l.map(r => r.dept))] }; };
     const scope = type ? " (" + type + " only)" : "";
 
     /* ===== 1. Monthly submission gap ===== */
@@ -411,7 +504,7 @@
     const effective = (x, t) => { const s = x.status || "Not started"; return s === "Not started" && t.n ? { status: "In progress", auto: true } : { status: s, auto: false }; };
     const repCell = t => `<b>${t.n}</b>${t.depts.length ? `<div class="hint">${esc(t.depts.join(", "))}</div>` : ""}`;
     const autoNote = e => e.auto ? '<div class="hint gx-auto">Reports received → counted as In progress</div>' : "";
-    const repMonthly = (prefix, what) => { const l0 = reps.filter(r => actOf(r).startsWith(prefix)); return cols(`Reports tagged to ${what} per month`, mStats.map(m => {
+    const repMonthly = (prefix, what) => { const pk = prefix.replace("|", ""); const l0 = reps.filter(r => actOf(r).startsWith(prefix) || ((pk === "nirf" || pk === "nisp") && classify(r)[pk].length)); return cols(`Reports classified under ${what} per month`, mStats.map(m => {
       const l = l0.filter(r => monthOf(r) === m.key);
       return { lab: m.short, now: m.st === "current", future: m.st === "future", top: m.st === "future" ? "" : l.length, flag: m.st === "past" && !l.length,
         tip: `${m.label}: ${l.length} report(s) on ${what}`, segs: [{ v: l.length, cls: "accent", t: l.length + " report(s)" }] };
@@ -432,7 +525,7 @@
     const nispRows = nisp.map(x => `<tr><td class="n">${x.i + 1}</td><td>${esc(x.t)}</td><td class="n">${repCell(x.rp)}</td><td>${sel("nisp", x.c, get(x.c).status)}${autoNote(x.e)}</td><td>${tsel("nisp", x.c, x.target)}</td><td>${inp("nisp", x.c, "remarks", get(x.c).remarks, "Remarks / evidence")}</td><td class="hint">${upd(x.c)}</td></tr>`).join("");
     const nispPct = pct(nA + nP * 0.5, NISP.length - nNA);
     const secNisp = frame("nisp", `NISP status · ${yl}`, `${nA} of ${NISP.length - nNA} achieved`,
-      `National Innovation and Start-up Policy. Reports that departments tag with a NISP item count here automatically${scope}. ${canEdit ? "Confirm each item's status and set a target month in the table; it saves as you go." : ""}`,
+      `National Innovation and Start-up Policy. Every report classified under a NISP item (by the AI agent, from its title or from the activity type chosen) counts here automatically${scope}. ${canEdit ? "Confirm each item's status and set a target month in the table; it saves as you go." : ""}`,
       kpis([[nispPct + "%", "readiness (in progress counts half)", nispPct >= 75 ? "ok" : nispPct >= 40 ? "warn" : "bad"], [nA, "achieved", "ok"], [nP + nN, "still open", nP + nN ? "warn" : "ok"], [nOver, "past their target month", nOver ? "bad" : "ok"]]) +
       `<div class="gx-split"><div class="gx-stackfig">${hbars("Overall", [{ lab: "NISP", val: nA + "/" + (NISP.length - nNA), segs: [{ v: nA / NISP.length, cls: "ok" }, { v: nP / NISP.length, cls: "warn" }, { v: nN / NISP.length, cls: "bad" }, { v: nNA / NISP.length, cls: "neutral" }] }], [["ok", "Achieved"], ["warn", "In progress"], ["bad", "Not started"], ["neutral", "Not applicable"]])}
         ${repMonthly("nisp|", "NISP items")}
@@ -477,7 +570,7 @@
           <td class="n">${repCell(cp.rp)}</td><td>${sel("nirf", c, x.status)}${autoNote(cp.e)}</td><td>${inp("nirf", c, "value", x.value, "Count / value (3 yrs)")}</td><td>${tsel("nirf", c, x.target || "")}</td><td>${inp("nirf", c, "remarks", x.remarks, "Remarks / evidence")}</td><td class="hint">${upd(c)}</td></tr>`; }).join("");
     }).join("");
     const secNirf = frame("nirf", `NIRF Innovation 2025 · ${yl}`, `${Math.round(score)}% ready`,
-      `6 parameters from the NIRF India Rankings 2025 Innovation methodology (FSI 0.25 · IA 0.15 · RIO 0.30 · PII 0.10 · AIE 0.10 · PR 0.10). Reports that departments tag with a NIRF component count here automatically${scope}. Readiness counts Achieved as full and In progress as half, weighted by marks and parameter weight. It shows how complete your evidence is, not the NIRF score.`,
+      `6 parameters from the NIRF India Rankings 2025 Innovation methodology (FSI 0.25 · IA 0.15 · RIO 0.30 · PII 0.10 · AIE 0.10 · PR 0.10). Every report classified under a NIRF component (by the AI agent, from its title or from the activity type chosen) counts here automatically${scope}. Readiness counts Achieved as full and In progress as half, weighted by marks and parameter weight. It shows how complete your evidence is, not the NIRF score.`,
       kpis([[Math.round(score) + "%", `readiness (${fmt1(secured)} of ${fmt1(possible)} weighted points)`, score >= 70 ? "ok" : score >= 40 ? "warn" : "bad"],
         [bigGap ? bigGap.pc : "—", bigGap ? `largest gap: ${esc(bigGap.pn)} (${fmt1(bigGap.gap)} pts)` : "largest gap", bigGap && bigGap.gap ? "bad" : ""],
         [cAch + "/" + (comps.length - cNA), "components achieved", ""], [cOver, "past their target month", cOver ? "bad" : "ok"]]) +
@@ -515,5 +608,5 @@
     };
   }
 
-  window.IICFramework = { CAL, DAYS, NIRF, NISP, RND, optionsFor, allOptions, labelOf, render, exportSheets };
+  window.IICFramework = { CAL, DAYS, NIRF, NISP, RND, classify, policyCell, policyText, policyMatch, policyFilterOptions, optionsFor, allOptions, labelOf, render, exportSheets };
 })();
