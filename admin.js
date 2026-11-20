@@ -186,7 +186,19 @@
     if (!("ai_attempts" in r)) return "";
     const v = r.ai_review || {};
     if (!r.ai_checked_at) {
-      if (v.error) return `<div class="ai-chip ai-err" title="${esc(v.error)}">AI check failed (${r.ai_attempts}/3) <button class="linkbtn" data-recheck="${esc(r.id)}">Retry</button></div>`;
+      if (v.error) {
+        const e = String(v.error), why =
+          /busy 429|RESOURCE_EXHAUSTED|quota/i.test(e) ? "Gemini's free limit was reached for now. It tries again automatically on the next run (every 5 minutes)." :
+          /busy 5\d\d|overloaded|UNAVAILABLE|unreachable/i.test(e) ? "The AI service was busy. It tries again automatically on the next run (every 5 minutes)." :
+          /AI service 40[13]|API key|PERMISSION_DENIED/i.test(e) ? "The AI key was not accepted. Check the Script property AI_API_KEY in Apps Script." :
+          /AI service 404|not found for API|is not supported/i.test(e) ? "The AI model name is not available. Check AI_MODEL in Apps Script (e.g. gemini-2.5-flash)." :
+          /AI service 400/i.test(e) ? "The AI service refused the request. Check AI_MODEL and AI_PROVIDER in Apps Script." :
+          /not valid JSON|empty AI reply/i.test(e) ? "The AI's answer could not be read. Press Retry; if it repeats, change AI_MODEL to gemini-2.5-flash." :
+          /readable Word|Invalid argument|unzip/i.test(e) ? "The file is not a readable Word (.docx) file. Ask the department to save it as .docx and upload again." :
+          /getFileById|No item with the given ID|Drive/i.test(e) ? "The report file was not found in Google Drive." : "";
+        return `<div class="ai-chip ai-err">AI check failed (${r.ai_attempts}/3) <button class="linkbtn" data-recheck="${esc(r.id)}">Retry</button>
+          <div class="ai-why">${why ? esc(why) + "<br>" : ""}<span class="hint">${esc(e.slice(0, 160))}</span></div></div>`;
+      }
       return r.verification === "Pending Verification" && r.drive_id && r.drive_id !== "missing" ? '<div class="ai-chip">AI check: waiting</div>' : "";
     }
     const fails = (v.checks || []).filter(c => !c.pass);

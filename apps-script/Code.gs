@@ -41,7 +41,8 @@ const AI_PROVIDER = 'claude';            // 'claude' (Anthropic API key) or 'gem
 const AI_MODEL = 'claude-sonnet-5-5';    // for Gemini use a model name from Google AI Studio, e.g. 'gemini-2.5-flash'
 const AI_MODE = 'auto';                  // 'auto' = AI sets Verified / Returned for Correction and the department is emailed
                                          // 'suggest' = AI only writes its review in the tracker; you decide
-const AI_PASS_SCORE = 70;                // below this score a report is returned, even with no critical problem
+const AI_PASS_SCORE = 70;
+const AI_FALLBACK_MODEL = 'gemini-2.5-flash-lite';   // used for a last try when Gemini is busy ('' = none)                // below this score a report is returned, even with no critical problem
 
 
 /* ------------------------------------------------------------------ */
@@ -437,13 +438,17 @@ function docxText_(blob) {
 
 function aiCall_(system, user) {
   const key = PropertiesService.getScriptProperties().getProperty('AI_API_KEY');
-  let url, o, pick;
+  let url, o, pick, gem;
   if (AI_PROVIDER === 'gemini') {
-    url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(AI_MODEL) + ':generateContent';
-    o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
-          payload: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }],
-                                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 } }) };
-    pick = j => j.candidates[0].content.parts.map(p => p.text || '').join('');
+    gem = model => {
+      const gc = { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 };
+      if (/^gemini-2\.5/.test(model)) gc.thinkingConfig = { thinkingBudget: /lite/.test(model) ? 0 : 1024 };  // keeps room for the answer and speeds it up
+      url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+      o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
+            payload: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: gc }) };
+    };
+    gem(AI_MODEL);
+    pick = j => ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
   } else {
     url = 'https://api.anthropic.com/v1/messages';
     o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -451,19 +456,35 @@ function aiCall_(system, user) {
           payload: JSON.stringify({ model: AI_MODEL, max_tokens: 8000, temperature: 0.1, system: system, messages: [{ role: 'user', content: user }] }) };
     pick = j => j.content.filter(c => c.type === 'text').map(c => c.text).join('');
   }
-  // up to 2 tries: an AI reply is occasionally cut short or has a JSON slip; a second try almost always fixes it
-  let last = '';
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const r = UrlFetchApp.fetch(url, o), code = r.getResponseCode();
+  // The AI service is sometimes busy (429 / 5xx, common on Gemini's free tier): wait and try again, the last time with the
+  // fallback model. A reply that is cut short or has a JSON slip is also asked for again.
+  let last = '', busy = 0, bad = 0;
+  const t0 = Date.now();
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    if (attempt > 1 && Date.now() - t0 > 150000) break;      // stay well inside Google's 6-minute limit
+    let r;
+    try { r = UrlFetchApp.fetch(url, o); }
+    catch (e) { last = 'AI service unreachable: ' + e; busy++; Utilities.sleep(6000 * attempt); continue; }   // network timeout
+    const code = r.getResponseCode();
+    if (code === 429 || code >= 500) {
+      last = 'AI service busy ' + code + ': ' + r.getContentText().slice(0, 160); busy++;
+      console.warn(last);
+      if (attempt < 4) Utilities.sleep(code === 429 ? 20000 : 8000 * attempt);
+      if (attempt === 3 && gem && AI_FALLBACK_MODEL && AI_FALLBACK_MODEL !== AI_MODEL) gem(AI_FALLBACK_MODEL);
+      continue;
+    }
     if (code >= 300) throw new Error('AI service ' + code + ': ' + r.getContentText().slice(0, 200));
     let out = '';
-    try { out = pick(JSON.parse(r.getContentText())); } catch (e) { last = 'empty AI reply'; continue; }
-    const j = parseAiJson_(out);
+    try { out = pick(JSON.parse(r.getContentText())); } catch (e) { }
+    const j = out && parseAiJson_(out);
     if (j) return j;
-    last = out;
-    console.warn('AI reply was not valid JSON (try ' + attempt + '): ' + out.slice(0, 300));
+    last = out ? 'AI reply was not valid JSON: ' + out.slice(0, 120) : 'empty AI reply';
+    console.warn(last + ' (try ' + attempt + ')');
+    if (++bad >= 2) break;
   }
-  throw new Error('AI reply was not valid JSON after 2 tries: ' + String(last).slice(0, 150));
+  const err = new Error(last || 'AI check failed');
+  err.transient = busy > 0 && !bad;      // only busy / unreachable: try again on the next run without using up an attempt
+  throw err;
 }
 
 // reads the AI's JSON leniently: code fences, text around it, trailing commas, curly quotes as JSON quotes
@@ -609,8 +630,9 @@ function reviewReports_(started) {
       n++;
     } catch (e) {
       console.warn('AI check failed for ' + r.title + ': ' + e);
-      try { sb_('patch', '/rest/v1/reports?id=eq.' + r.id, { ai_attempts: (r.ai_attempts || 0) + 1, ai_review: { error: String(e).slice(0, 300) } }); } catch (e2) { }
-      if (/AI service (401|403)/.test(String(e))) break;   // wrong key: stop until it's fixed
+      const msg = String(e && e.message || e).slice(0, 300);
+      try { sb_('patch', '/rest/v1/reports?id=eq.' + r.id, { ai_attempts: (r.ai_attempts || 0) + (e && e.transient ? 0 : 1), ai_review: { error: msg, at: new Date().toISOString() } }); } catch (e2) { }
+      if (/AI service (400|401|403|404)/.test(msg) || (e && e.transient)) break;   // wrong key / model, or the service is busy: stop until the next run
     }
   }
   console.log('AI checked: ' + n);
