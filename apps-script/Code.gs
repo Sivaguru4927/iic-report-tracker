@@ -38,11 +38,11 @@ const SHARE_WITH = ['ecell@psgcas.ac.in'];
 // 5. AI report verification (Step 10). The API key is NOT pasted here: add the
 //    Script property AI_API_KEY. Without that property the AI check stays off.
 const AI_PROVIDER = 'claude';            // 'claude' (Anthropic API key) or 'gemini' (Google AI Studio key)
-const AI_MODEL = 'claude-sonnet-5-5';    // for Gemini use a model name from Google AI Studio, e.g. 'gemini-2.5-flash'
+const AI_MODEL = 'claude-sonnet-5-5';    // for Gemini use a model name from Google AI Studio, e.g. 'gemini-3.8-flash'
 const AI_MODE = 'auto';                  // 'auto' = AI sets Verified / Returned for Correction and the department is emailed
                                          // 'suggest' = AI only writes its review in the tracker; you decide
 const AI_PASS_SCORE = 70;                // below this score a report is returned, even with no critical problem
-const AI_FALLBACK_MODEL = 'gemini-2.5-flash-lite';   // used for a last try when Gemini is busy ('' = none)
+const AI_FALLBACK_MODEL = '';           // optional second Gemini model for a last try when the first is busy ('' = none)
 
 
 /* ------------------------------------------------------------------ */
@@ -438,16 +438,17 @@ function docxText_(blob) {
 
 function aiCall_(system, user) {
   const key = PropertiesService.getScriptProperties().getProperty('AI_API_KEY');
-  let url, o, pick, gem;
+  let url, o, pick, gem, noThink = false, model = AI_MODEL;
   if (AI_PROVIDER === 'gemini') {
     gem = model => {
       const gc = { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 };
       if (/^gemini-2\.5/.test(model)) gc.thinkingConfig = { thinkingBudget: /lite/.test(model) ? 0 : 1024 };  // keeps room for the answer and speeds it up
+      else if (/^gemini-[3-9]/.test(model) && !noThink) gc.thinkingConfig = { thinkingLevel: 'low' };            // newer models: think briefly = much faster
       url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
       o = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
             payload: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: gc }) };
     };
-    gem(AI_MODEL);
+    gem(model);
     pick = j => ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
   } else {
     url = 'https://api.anthropic.com/v1/messages';
@@ -473,7 +474,11 @@ function aiCall_(system, user) {
       if (attempt === 3 && gem && AI_FALLBACK_MODEL && AI_FALLBACK_MODEL !== AI_MODEL) gem(AI_FALLBACK_MODEL);
       continue;
     }
-    if (code >= 300) throw new Error('AI service ' + code + ': ' + r.getContentText().slice(0, 200));
+    const body = r.getContentText();
+    if (gem && code === 400 && /thinking/i.test(body) && !noThink) { noThink = true; gem(model); continue; }        // model doesn't take the thinking setting
+    const moved = gem && code === 404 && /use (?:models\/)?(gemini-[\w.-]+)/i.exec(body);                         // Google retired the model and names its successor
+    if (moved && moved[1] !== model) { console.warn('AI_MODEL ' + model + ' is retired; using ' + moved[1] + '. Change AI_MODEL at the top of the script.'); model = moved[1]; gem(model); continue; }
+    if (code >= 300) throw new Error('AI service ' + code + ': ' + body.slice(0, 200));
     let out = '';
     try { out = pick(JSON.parse(r.getContentText())); } catch (e) { }
     const j = out && parseAiJson_(out);
