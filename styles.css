@@ -202,13 +202,14 @@ body.with-ticker{padding-bottom:calc(46px + env(safe-area-inset-bottom, 0px))}
 .ticker{position:fixed;left:0;right:0;bottom:0;z-index:30;overflow:hidden;background:var(--accent);color:var(--accent-fg);
   border-top:1px solid rgba(255,255,255,.15);box-shadow:0 -4px 14px rgba(20,60,50,.12);
   padding:0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)}
-.tk-track{display:flex;width:max-content;animation:tk-scroll 28s linear infinite}
+/* the message enters from the right, crosses the screen once, leaves on the left, then starts again */
+.tk-track{display:flex;width:max-content;animation:tk-pass 22s linear infinite;will-change:transform}
 .ticker:hover .tk-track{animation-play-state:paused}
 .tk-group{display:flex;align-items:center;flex:none}
 .tk-item{font-family:"Cinzel",Georgia,"Times New Roman",serif;font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;line-height:46px;padding:0 22px;white-space:nowrap}
 .tk-sep{font-size:9px;opacity:.7}
-@keyframes tk-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.tk-track{animation:none}.ticker{display:flex;justify-content:center}.tk-group[aria-hidden="true"]{display:none}}
+@keyframes tk-pass{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.tk-track{animation:none}.ticker{display:flex;justify-content:center}.tk-track{transform:none}}
 @media (max-width:520px){.tk-item{font-size:13px;padding:0 14px;line-height:40px}body.with-ticker{padding-bottom:calc(40px + env(safe-area-inset-bottom, 0px))}}
 
 .query{background:var(--warn-bg);color:var(--fg);border-left:3px solid var(--warn);padding:4px 8px;border-radius:4px;font-size:13px;overflow-wrap:anywhere}
