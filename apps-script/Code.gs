@@ -644,7 +644,8 @@ function fillBeneficiaries_(started, max) {
   let rows;
   try {
     rows = sb_('get', '/rest/v1/reports?select=id,title,drive_id,ai_review&drive_id=not.is.null&drive_id=neq.missing' +
-      '&or=(ai_checked_at.not.is.null,verification.neq.Pending%20Verification)&ai_review->beneficiaries=is.null&ai_review->>ben_tried=is.null' +
+      '&or=%28ai_checked_at.not.is.null%2Cverification.neq.Pending%20Verification%29' +      // Apps Script refuses ( ) > unencoded in a URL
+      '&ai_review-%3Ebeneficiaries=is.null&ai_review-%3E%3Eben_tried=is.null' +
       '&order=created_at.desc&limit=' + (max || 5));   // pending reports get the count with their AI check
   } catch (e) { console.warn('Beneficiaries: ' + e); return 0; }
   let n = 0;
