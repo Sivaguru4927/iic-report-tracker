@@ -183,6 +183,20 @@ const THANKS = "Thanks for Submission";
       .sort((a, b) => byName(a.type, b.type) || byName(a.dept, b.dept) || a.quarter.localeCompare(b.quarter) || (a.month || "").localeCompare(b.month || "") || (b.created_at || "").localeCompare(a.created_at || ""));
   }
   // AI report check (Apps Script, Step 10): score, decision and what failed
+  // number of beneficiaries, read from the report by the AI agent (Apps Script)
+  const benOf = r => (r.ai_review && r.ai_review.beneficiaries) || null;
+  function benCell(r) {
+    const b = benOf(r);
+    if (b && b.total != null) {
+      const parts = [[b.students, "students"], [b.faculty, "faculty"], [b.external, "external"]].filter(x => x[0]).map(x => x[0] + " " + x[1]);
+      return `<b class="ben-n" title="${esc(b.from ? "From the report: " + b.from : "Read from the report by the AI agent")}">${esc(String(b.total))}</b>${parts.length ? `<div class="hint">${esc(parts.join(" · "))}</div>` : ""}`;
+    }
+    if (r.ai_review && (r.ai_review.ben_tried || r.ai_checked_at)) return '<span class="hint">Not given in the report</span>';
+    return r.drive_id && r.drive_id !== "missing" ? '<span class="hint">To be read by the AI agent</span>' : '<span class="hint">—</span>';
+  }
+  const benText = r => { const b = benOf(r); return b && b.total != null ? b.total : ""; };
+  const benSplit = r => { const b = benOf(r); return b ? [[b.students, "students"], [b.faculty, "faculty"], [b.external, "external"]].filter(x => x[0]).map(x => x[0] + " " + x[1]).join(", ") : ""; };
+
   function aiCell(r) {
     if (!("ai_attempts" in r)) return "";
     const v = r.ai_review || {};
@@ -237,11 +251,11 @@ const THANKS = "Thanks for Submission";
     const list = filteredReports();
     if (!state.reports.length) { tbl.innerHTML = '<div class="empty">No reports yet. They appear here as departments submit them from the submission page.</div>'; return; }
     if (!list.length) { tbl.innerHTML = '<div class="empty">No reports match these filters.</div>'; return; }
-    tbl.innerHTML = `<p class="hint" style="margin-bottom:8px">${list.length} report${list.length > 1 ? "s" : ""}</p><table class="rep"><thead><tr><th>Type</th><th>Department</th><th>Faculty</th><th>Mobile</th><th>Quarter</th><th>Month</th><th>Report title</th><th>NIRF / NISP</th><th>Report file</th><th>Submitted on</th><th>Late submission</th><th>Query from department</th><th>Submission</th><th>Verification</th><th>Remarks</th><th></th></tr></thead><tbody>` +
+    tbl.innerHTML = `<p class="hint" style="margin-bottom:8px">${list.length} report${list.length > 1 ? "s" : ""}</p><table class="rep"><thead><tr><th>Type</th><th>Department</th><th>Faculty</th><th>Mobile</th><th>Quarter</th><th>Month</th><th>Report title</th><th>Beneficiaries</th><th>NIRF / NISP</th><th>Report file</th><th>Submitted on</th><th>Late submission</th><th>Query from department</th><th>Submission</th><th>Verification</th><th>Remarks</th><th></th></tr></thead><tbody>` +
       list.map(r => {
         const opts = VERS.map(v => `<option${v === r.verification ? " selected" : ""}>${esc(v)}</option>`).join("");
         return `<tr><td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.dept)}</td><td>${esc(r.faculty)}${r.email ? `<div class="hint" style="overflow-wrap:anywhere">${esc(r.email)}</div>` : ""}</td><td style="font-variant-numeric:tabular-nums">${esc(r.mobile)}</td>
-          <td style="white-space:nowrap">${esc(IIC.qShort(r.quarter))}</td><td style="white-space:nowrap">${esc(IIC.monthLabel(r.month) || "—")}</td><td style="min-width:220px">${esc(r.title)}<div><select class="actsel" data-act="${esc(r.id)}" aria-label="IIC activity for ${esc(r.title)}">${IICFramework.allOptions(r.iic_activity || "")}</select></div></td><td style="min-width:170px">${IICFramework.policyCell(r)}</td><td>${fileCell(r)}</td>
+          <td style="white-space:nowrap">${esc(IIC.qShort(r.quarter))}</td><td style="white-space:nowrap">${esc(IIC.monthLabel(r.month) || "—")}</td><td style="min-width:220px">${esc(r.title)}<div><select class="actsel" data-act="${esc(r.id)}" aria-label="IIC activity for ${esc(r.title)}">${IICFramework.allOptions(r.iic_activity || "")}</select></div></td><td style="min-width:120px">${benCell(r)}</td><td style="min-width:170px">${IICFramework.policyCell(r)}</td><td>${fileCell(r)}</td>
           <td style="white-space:nowrap">${IIC.day(r.created_at)}</td><td style="white-space:nowrap">${lateCell(r)}</td><td style="min-width:160px">${r.query ? `<div class="query">${esc(r.query)}</div>` : '<span class="hint">—</span>'}</td><td>${IIC.subPill(r.submission)}</td>
           <td><select class="vsel v-${IIC.verClass(r.verification)}" data-ver="${esc(r.id)}" aria-label="Verification status for ${esc(r.title)}">${opts}</select>${aiCell(r)}</td>
           <td><textarea class="rem" rows="2" maxlength="1000" data-rem="${esc(r.id)}" aria-label="Remarks for ${esc(r.title)}" placeholder="Add remarks">${esc(r.remarks)}</textarea></td>
@@ -490,9 +504,9 @@ const THANKS = "Thanks for Submission";
   }
 
   /* ---------- Excel + PDF downloads ---------- */
-  const REP_HEAD = ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Email", "Quarter", "Month", "Activity type", "NIRF / NISP classification", "Report title", "Report file", "Submitted on", "Late submission", "Submission", "Verification", "Remarks", "Queries / Difficulties", "Drive link", "AI check"];
+  const REP_HEAD = ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Email", "Quarter", "Month", "Activity type", "NIRF / NISP classification", "Report title", "Beneficiaries", "Beneficiaries (break-up)", "Report file", "Submitted on", "Late submission", "Submission", "Verification", "Remarks", "Queries / Difficulties", "Drive link", "AI check"];
   function reportRows() {
-    return filteredReports().map((r, i) => [i + 1, r.type, r.dept, r.faculty, r.mobile, r.email || "", r.quarter, IIC.monthLabel(r.month), IICFramework.labelOf(r.iic_activity), IICFramework.policyText(r), r.title, r.file_name || "", IIC.day(r.created_at), lateInfo(r).late ? "Late (" + lateInfo(r).days + " days; due " + lateInfo(r).deadline + ")" : "On time", r.submission, r.verification, r.remarks || "", r.query || "", r.drive_url || "", r.ai_checked_at ? r.ai_score + "/100 " + (r.ai_decision || "") : ""]);
+    return filteredReports().map((r, i) => [i + 1, r.type, r.dept, r.faculty, r.mobile, r.email || "", r.quarter, IIC.monthLabel(r.month), IICFramework.labelOf(r.iic_activity), IICFramework.policyText(r), r.title, benText(r), benSplit(r), r.file_name || "", IIC.day(r.created_at), lateInfo(r).late ? "Late (" + lateInfo(r).days + " days; due " + lateInfo(r).deadline + ")" : "On time", r.submission, r.verification, r.remarks || "", r.query || "", r.drive_url || "", r.ai_checked_at ? r.ai_score + "/100 " + (r.ai_decision || "") : ""]);
   }
   function filterLabel() {
     const parts = [["r_type", "Aided & SF"], ["r_dept", "All departments"], ["r_q", "All quarters"], ["r_m", "All months"], ["r_ver", "Any verification status"]]
@@ -530,7 +544,7 @@ const THANKS = "Thanks for Submission";
     const s = summaryData();
     return IICExport.toExcel([
       { name: "All reports", title: "IIC Quarterly Reports", subtitle: filterLabel(), head: REP_HEAD, rows: reportRows(),
-        widths: [6, 9, 28, 22, 12, 28, 11, 15, 45, 40, 28, 13, 26, 13, 22, 40, 40, 50, 22] },
+        widths: [6, 9, 28, 22, 12, 28, 11, 15, 40, 40, 45, 13, 30, 28, 13, 26, 13, 22, 40, 40, 50, 22] },
       { name: "Department summary", title: "Department-wise Submitted Reports", subtitle: summaryIntro(), head: SUM_HEAD, rows: s.rows,
         widths: [9, 36, 6, 6, 6, 6, 15, 10, 13] },
       ...catSheets()
@@ -548,10 +562,13 @@ const THANKS = "Thanks for Submission";
     if (!rows.length) throw new Error("There are no reports to download for these filters.");
     const blob = await IICExport.toPdf({
       title: "IIC Quarterly Reports", subtitle: filterLabel() + "  ·  " + rows.length + " report(s)", orientation: "landscape",
-      head: ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Quarter", "Month", "Report title", "Report file", "Submitted on", "Verification", "Remarks"],
-      rows: rows.map(r => [r[0], r[1], r[2], r[3] + (r[5] ? "\n" + r[5] : ""), r[4], IIC.qShort(r[6]), r[7], r[9] + (r[8] ? "\n" + r[8] : "") + (r[15] ? "\nQuery: " + r[15] : ""), r[10], r[11], r[13], r[14]]),
-      columnStyles: { 0: { cellWidth: 24, halign: "center" }, 1: { cellWidth: 36 }, 2: { cellWidth: 74 }, 3: { cellWidth: 96 }, 4: { cellWidth: 54 }, 5: { cellWidth: 30, halign: "center" }, 6: { cellWidth: 50 },
-        7: { cellWidth: 104 }, 8: { cellWidth: 74 }, 9: { cellWidth: 50 }, 10: { cellWidth: 58 }, 11: { cellWidth: "auto" } },
+      // row fields (see REP_HEAD): 0 S.No, 1 type, 2 dept, 3 faculty, 4 mobile, 5 email, 6 quarter, 7 month, 8 activity, 9 NIRF/NISP,
+      // 10 title, 11 beneficiaries, 12 break-up, 13 file, 14 submitted on, 15 late, 16 submission, 17 verification, 18 remarks, 19 query
+      head: ["S.No", "Aided/SF", "Department", "Faculty", "Mobile", "Quarter", "Month", "Report title", "Beneficiaries", "Report file", "Submitted on", "Verification", "Remarks"],
+      rows: rows.map(r => [r[0], r[1], r[2], r[3] + (r[5] ? "\n" + r[5] : ""), r[4], IIC.qShort(r[6]), r[7], r[10] + (r[8] ? "\n" + r[8] : "") + (r[19] ? "\nQuery: " + r[19] : ""),
+        r[11] === "" ? "" : r[11] + (r[12] ? "\n" + r[12] : ""), r[13], r[14], r[17], r[18]]),
+      columnStyles: { 0: { cellWidth: 24, halign: "center" }, 1: { cellWidth: 36 }, 2: { cellWidth: 70 }, 3: { cellWidth: 90 }, 4: { cellWidth: 52 }, 5: { cellWidth: 28, halign: "center" }, 6: { cellWidth: 48 },
+        7: { cellWidth: 100 }, 8: { cellWidth: 52, halign: "center" }, 9: { cellWidth: 70 }, 10: { cellWidth: 48 }, 11: { cellWidth: 56 }, 12: { cellWidth: "auto" } },
       fontSize: 7.5
     });
     IIC.saveBlob(blob, "IIC_Reports_" + stamp() + ".pdf");

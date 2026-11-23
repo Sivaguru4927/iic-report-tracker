@@ -307,3 +307,11 @@ Word file. It **replaces** the earlier file of the same report (no new report is
 *Pending Verification*, the AI agent checks it again, and a "Corrected report received" email is sent. In Google Drive
 the corrected file is saved in the same folder and the earlier file goes to the bin. All reports marks such reports
 **Corrected** and has a *Copy correction link* button on returned reports (to send the link again yourself).
+
+## Number of beneficiaries
+
+All reports has a **Beneficiaries** column after the report title (also in the Excel and PDF downloads): the number of
+participants the AI agent reads from each report (the Participants line — internal students / faculty and external —
+or else the attendance details), with the break-up under the total. New reports get it with their AI check. Reports
+checked earlier, or verified by hand, are read 5 at a time on each 5-minute run; run `fillBeneficiariesNow` in Apps
+Script to read up to 20 at once. "Not given in the report" means the report has no participant numbers.
