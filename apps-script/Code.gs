@@ -367,7 +367,7 @@ function setupDriveStorage() {
 // id, what is checked, critical? (a failed critical check always returns the report)
 const AI_CHECKS_ = [
   ['T1',  'Header: the PSG College of Arts & Science logo and the IIC (Institution\'s Innovation Council) logo ([IMAGE] markers in the page header or at the top of the first page), then PSG COLLEGE OF ARTS & SCIENCE, COIMBATORE-14 / Centre for Innovation Incubation & Entrepreneurship / INSTITUTION\'S INNOVATION COUNCIL / department name / programme title', false],
-  ['T2',  'Title of the Event contains at least one of the words Innovation, Entrepreneurship, Incubation, Start-Up or IPR (MIC rejects programmes without them)', true],
+  // T2 (title must contain Innovation / Entrepreneurship / Incubation / Start-Up / IPR) is not checked any more
   ['T3',  'Details block filled in: Date (dd.mm.yyyy), Time, Duration, Participants Internal (student no. / faculty no.) and External, Activity Category (Calendar Activity / MIC / Celebration / Self Driven), Theme, Activity Lead By (Institute Council or Student Council), Level of the Activity (one of 1–4), Mode (Online with platform, or Offline with venue)', true],
   ['T4',  'Department in the report matches the submission, and the event date falls in the submitted month of activity', true],
   ['T5',  'Expert / Speakers details: number of experts engaged, and for each expert the name, designation, organisation and a brief profile', true],
@@ -549,9 +549,9 @@ const AI_SYSTEM_ = [
   'CHECKS:',
   AI_CHECKS_.map(c => c[0] + ' ' + c[1]).join('\n'),
   '',
-  'Reply with one valid JSON object only, no other text, in exactly this shape (one entry in "checks" for every check T1 to T20;',
+  'Reply with one valid JSON object only, no other text, in exactly this shape (one entry in "checks" for every check listed above;',
   '"score" is a whole number 0-100; "off_topic" and "fixes" may be empty lists):',
-  '{"checks":[{"id":"T1","pass":true,"note":"short reason"},{"id":"T2","pass":false,"note":"short reason"}],',
+  '{"checks":[{"id":"T1","pass":true,"note":"short reason"},{"id":"T3","pass":false,"note":"short reason"}],',
   ' "relevance":{"subject":"subject of the event title","score":85,"off_topic":["Section name: what it is about instead"],"title_match":true},',
   ' "classify":{"nirf":["PII.PI"],"nisp":["N8"],"reason":"one short sentence"},',
   ' "summary":"one formal sentence on the report overall",',
@@ -574,14 +574,12 @@ function reviewOne_(r, blob) {
     const c = byId[id] || { pass: false, note: 'Not assessed' };
     return { id: id, what: what, critical: critical, pass: c.pass === true, note: String(c.note || '').slice(0, 200) };
   });
-  // checks that don't need the AI: title words, leftover template text, number of images
+  // checks that don't need the AI: leftover template text, number of images
   const force = (id, note, fix) => { const c = checks.find(x => x.id === id); c.pass = false; c.note = note; forced.push(fix); };
   const forced = [];
   const tl = (/Title of the Event\s*[:\-–]\s*(.+)/i.exec(d.text) || [])[1];
   const title = tl && !/^_+$/.test(tl.trim()) ? tl.trim() : r.title;
-  if (!TITLE_WORDS_.test(title) && !TITLE_WORDS_.test(r.title))
-    force('T2', 'The title "' + String(title).slice(0, 80) + '" has none of Innovation, Entrepreneurship, Incubation, Start-Up or IPR.',
-          'Rename the event title to include Innovation, Entrepreneurship, Incubation, Start-Up or IPR (MIC rejects titles without them).');
+  // (the title-keyword rule T2 is no longer checked)
   const left = PLACEHOLDERS_.map(rx => (d.text.match(rx) || [])[0]).filter(Boolean);
   if (left.length) force('T16', 'Template text left unfilled: ' + left.slice(0, 4).map(x => '"' + x + '"').join(', ') + '.',
                          'Fill in every blank of the template (' + left.slice(0, 3).join(', ') + ').');

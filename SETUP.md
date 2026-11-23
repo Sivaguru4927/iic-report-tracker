@@ -210,7 +210,7 @@ checked by the script itself, not the AI. It runs inside the same Apps Script, e
   verification email with the list of corrections. In `'suggest'` it only shows its review in the tracker.
 - It only touches reports that are still **Pending Verification**, so your own decisions are never overwritten.
   Older pending reports are checked too.
-- The rules are in `AI_CHECKS_` near the end of `Code.gs` (with `TITLE_WORDS_`, `PLACEHOLDERS_` and `MIN_IMAGES_`); edit them there if the template changes.
+- The rules are in `AI_CHECKS_` near the end of `Code.gs` (with `PLACEHOLDERS_` and `MIN_IMAGES_`; the title-keyword check T2 is switched off); edit them there if the template changes.
 
 **10a.** Supabase → SQL Editor: run `supabase-update-ai.sql` (result: *AI check columns installed*).
 
