@@ -176,9 +176,9 @@ const THANKS = "Thanks for Submission";
   /* ---------- all reports ---------- */
   const lateInfo = r => IIC.lateInfo(r), lateCell = r => IIC.lateCell(r);
   function filteredReports() {
-    const t = $("r_type").value, d = $("r_dept").value, q = $("r_q").value, v = $("r_ver").value;
+    const t = $("r_type").value, d = $("r_dept").value, q = $("r_q").value, v = $("r_ver").value, mo = $("r_m") ? $("r_m").value : "";
     const lf = $("r_late") ? $("r_late").value : "";
-    return state.reports.filter(r => (!t || r.type === t) && (!d || r.dept === d) && (!q || r.quarter === q) && (!v || r.verification === v) && (!$("r_query").value || !!(r.query || "").trim())
+    return state.reports.filter(r => (!t || r.type === t) && (!d || r.dept === d) && (!q || r.quarter === q) && (!mo || r.month === mo) && (!v || r.verification === v) && (!$("r_query").value || !!(r.query || "").trim())
         && (!lf || (lf === "late") === lateInfo(r).late) && IICFramework.policyMatch(r, $("r_pol") ? $("r_pol").value : ""))
       .sort((a, b) => byName(a.type, b.type) || byName(a.dept, b.dept) || a.quarter.localeCompare(b.quarter) || (a.month || "").localeCompare(b.month || "") || (b.created_at || "").localeCompare(a.created_at || ""));
   }
@@ -229,6 +229,11 @@ const THANKS = "Thanks for Submission";
     const names = [...new Set(state.reports.filter(r => !$("r_type").value || r.type === $("r_type").value).map(r => r.dept))].sort(byName);
     $("r_dept").innerHTML = '<option value="">All departments</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
     if (names.includes(cur)) $("r_dept").value = cur;
+    // month filter: the months that have reports (newest first), limited to the chosen quarter
+    const curM = $("r_m").value;
+    const months = [...new Set(state.reports.filter(r => r.month && (!$("r_q").value || r.quarter === $("r_q").value)).map(r => r.month))].sort().reverse();
+    $("r_m").innerHTML = '<option value="">All months</option>' + months.map(m => `<option value="${esc(m)}">${esc(IIC.monthLabel(m))}</option>`).join("");
+    if (months.includes(curM)) $("r_m").value = curM;
     const list = filteredReports();
     if (!state.reports.length) { tbl.innerHTML = '<div class="empty">No reports yet. They appear here as departments submit them from the submission page.</div>'; return; }
     if (!list.length) { tbl.innerHTML = '<div class="empty">No reports match these filters.</div>'; return; }
@@ -244,7 +249,7 @@ const THANKS = "Thanks for Submission";
       }).join("") + "</tbody></table>";
   }
   if ($("r_pol")) $("r_pol").innerHTML = IICFramework.policyFilterOptions();
-  ["r_type", "r_dept", "r_q", "r_ver", "r_query", "r_late", "r_pol"].forEach(id => $(id).addEventListener("change", renderReports));
+  ["r_type", "r_dept", "r_q", "r_m", "r_ver", "r_query", "r_late", "r_pol"].forEach(id => $(id).addEventListener("change", renderReports));
 
   async function patchReport(id, fields, el) {
     const m = $("repMsg"), r = state.reports.find(x => x.id === id); if (!r) return;
@@ -490,8 +495,8 @@ const THANKS = "Thanks for Submission";
     return filteredReports().map((r, i) => [i + 1, r.type, r.dept, r.faculty, r.mobile, r.email || "", r.quarter, IIC.monthLabel(r.month), IICFramework.labelOf(r.iic_activity), IICFramework.policyText(r), r.title, r.file_name || "", IIC.day(r.created_at), lateInfo(r).late ? "Late (" + lateInfo(r).days + " days; due " + lateInfo(r).deadline + ")" : "On time", r.submission, r.verification, r.remarks || "", r.query || "", r.drive_url || "", r.ai_checked_at ? r.ai_score + "/100 " + (r.ai_decision || "") : ""]);
   }
   function filterLabel() {
-    const parts = [["r_type", "Aided & SF"], ["r_dept", "All departments"], ["r_q", "All quarters"], ["r_ver", "Any verification status"]]
-      .map(([id, all]) => $(id).value || all);
+    const parts = [["r_type", "Aided & SF"], ["r_dept", "All departments"], ["r_q", "All quarters"], ["r_m", "All months"], ["r_ver", "Any verification status"]]
+      .map(([id, all]) => id === "r_m" ? ($(id).value ? IIC.monthLabel($(id).value) : all) : ($(id).value || all));
     return parts.join(" · ");
   }
   const SUM_HEAD = ["Aided/SF", "Department", "Q1", "Q2", "Q3", "Q4", "Total submitted", "Verified", "Not verified"];
