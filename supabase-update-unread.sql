@@ -10,7 +10,10 @@ begin
                  where table_schema = 'public' and table_name = 'reports' and column_name = 'seen_at') then
     alter table public.reports add column seen_at timestamptz;
     -- reports already decided count as read; only those still waiting start in bold
+    -- (the report guard and email triggers are paused for this one update: it changes nothing else)
+    alter table public.reports disable trigger user;
     update public.reports set seen_at = now() where verification <> 'Pending Verification';
+    alter table public.reports enable trigger user;
   end if;
 end $$;
 
