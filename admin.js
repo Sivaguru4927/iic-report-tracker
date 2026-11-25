@@ -177,9 +177,9 @@ const THANKS = "Thanks for Submission";
   const lateInfo = r => IIC.lateInfo(r), lateCell = r => IIC.lateCell(r);
   function filteredReports() {
     const t = $("r_type").value, d = $("r_dept").value, q = $("r_q").value, v = $("r_ver").value, mo = $("r_m") ? $("r_m").value : "";
-    const lf = $("r_late") ? $("r_late").value : "";
+    const lf = $("r_late") ? $("r_late").value : "", rd = $("r_read") ? $("r_read").value : "";
     return state.reports.filter(r => (!t || r.type === t) && (!d || r.dept === d) && (!q || r.quarter === q) && (!mo || r.month === mo) && (!v || r.verification === v) && (!$("r_query").value || !!(r.query || "").trim())
-        && (!lf || (lf === "late") === lateInfo(r).late) && IICFramework.policyMatch(r, $("r_pol") ? $("r_pol").value : ""))
+        && (!lf || (lf === "late") === lateInfo(r).late) && (!rd || (rd === "unread") === isUnread(r)) && IICFramework.policyMatch(r, $("r_pol") ? $("r_pol").value : ""))
       .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));   // newest submission first
   }
   // AI report check (Apps Script, Step 10): score, decision and what failed
@@ -225,17 +225,41 @@ const THANKS = "Thanks for Submission";
       <p class="hint">${esc(String(v.words || "?"))} words · ${esc(String(v.images ?? "?"))} images · ${IIC.day(r.ai_checked_at)}</p>
       <button class="btn ghost small" data-recheck="${esc(r.id)}">Check again</button></details>`;
   }
+  /* unread reports (like unread mail): bold until a coordinator opens the file, changes the status or remarks,
+     or clicks the dot. Needs supabase-update-unread.sql (column seen_at); without it nothing is bold. */
+  const isUnread = r => "seen_at" in r && !r.seen_at;
+  function showRead(r) {
+    const tr = document.querySelector(`#repTable tr[data-row="${CSS.escape(r.id)}"]`);
+    if (tr) {
+      tr.classList.toggle("unread", isUnread(r));
+      const b = tr.querySelector("[data-seen]"); if (b) { const t = isUnread(r) ? "Mark as read" : "Mark as unread"; b.title = t; b.setAttribute("aria-label", t); }
+    }
+    unreadBadge();
+  }
+  function unreadBadge() {
+    const n = state.reports.filter(isUnread).length, b = $("rBadge");
+    if (b) { b.hidden = !n; b.textContent = n; }
+  }
+  async function setRead(id, read) {
+    const r = state.reports.find(x => x.id === id); if (!r || !("seen_at" in r) || !isUnread(r) === read) return;
+    const v = read ? new Date().toISOString() : null, old = r.seen_at;
+    r.seen_at = v; showRead(r);
+    const { error } = await sb.from("reports").update({ seen_at: v }).eq("id", id);
+    if (error) { r.seen_at = old; showRead(r); $("repMsg").className = "msg err"; $("repMsg").textContent = IIC.friendlyError(error); }
+  }
+
   function fileCell(r) {
     if (!r.file_path) return '<span class="hint">—</span>';
     // files are moved to the coordinator's Google Drive by the Apps Script (Step 9); until then they are in Supabase
     const fm = (r.formatted ? '<span class="pill p-ok fmt-pill" title="Formatted to the CII&amp;E report style by the AI formatting agent on upload">Formatted</span>' : "") +
       (r.resubmit_count ? `<span class="pill p-warn fmt-pill" title="Corrected file uploaded${r.resubmitted_at ? " on " + esc(IIC.day(r.resubmitted_at)) : ""}">Corrected${r.resubmit_count > 1 ? " ×" + r.resubmit_count : ""}</span>` : "") +
       (r.verification === "Returned for Correction" && r.edit_token ? `<div><button class="linkbtn" data-fixlink="${esc(r.id)}" title="The link in the department's email: opens this report to upload the corrected file">Copy correction link</button></div>` : "");
-    if (r.drive_url) return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><a class="btn ghost small" href="${esc(r.drive_url)}" target="_blank" rel="noopener">Open in Drive</a></div>${fm}`;
+    if (r.drive_url) return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><a class="btn ghost small" href="${esc(r.drive_url)}" target="_blank" rel="noopener" data-open="${esc(r.id)}">Open in Drive</a></div>${fm}`;
     if (r.drive_id === "missing") return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><span class="hint">File not found</span></div>`;
     return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><button class="btn ghost small" data-dl="${esc(r.id)}">Download</button></div>${fm}`;
   }
   function renderReports() {
+    unreadBadge();
     const tbl = $("repTable");
     if (tbl.contains(document.activeElement) && document.activeElement.matches("textarea,select")) { repDeferred = true; return; }
     repDeferred = false;
@@ -254,7 +278,7 @@ const THANKS = "Thanks for Submission";
     tbl.innerHTML = `<p class="hint" style="margin-bottom:8px">${list.length} report${list.length > 1 ? "s" : ""}</p><table class="rep"><thead><tr><th>Submitted on</th><th>Type</th><th>Department</th><th>Faculty</th><th>Mobile</th><th>Quarter</th><th>Month</th><th>Report title</th><th>Beneficiaries</th><th>NIRF / NISP</th><th>Report file</th><th>Late submission</th><th>Query from department</th><th>Submission</th><th>Verification</th><th>Remarks</th><th></th></tr></thead><tbody>` +
       list.map(r => {
         const opts = VERS.map(v => `<option${v === r.verification ? " selected" : ""}>${esc(v)}</option>`).join("");
-        return `<tr><td style="white-space:nowrap"><b>${IIC.day(r.created_at)}</b><div class="hint">${r.created_at ? esc(new Date(r.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })) : ""}</div></td><td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.dept)}</td><td>${esc(r.faculty)}${r.email ? `<div class="hint" style="overflow-wrap:anywhere">${esc(r.email)}</div>` : ""}</td><td style="font-variant-numeric:tabular-nums">${esc(r.mobile)}</td>
+        return `<tr class="${isUnread(r) ? "unread" : ""}" data-row="${esc(r.id)}"><td style="white-space:nowrap">${"seen_at" in r ? `<button class="read-dot" data-seen="${esc(r.id)}" title="${isUnread(r) ? "Mark as read" : "Mark as unread"}" aria-label="${isUnread(r) ? "Mark as read" : "Mark as unread"}"></button>` : ""}<b>${IIC.day(r.created_at)}</b><div class="hint">${r.created_at ? esc(new Date(r.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })) : ""}</div></td><td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.dept)}</td><td>${esc(r.faculty)}${r.email ? `<div class="hint" style="overflow-wrap:anywhere">${esc(r.email)}</div>` : ""}</td><td style="font-variant-numeric:tabular-nums">${esc(r.mobile)}</td>
           <td style="white-space:nowrap">${esc(IIC.qShort(r.quarter))}</td><td style="white-space:nowrap">${esc(IIC.monthLabel(r.month) || "—")}</td><td style="min-width:220px">${esc(r.title)}<div><select class="actsel" data-act="${esc(r.id)}" aria-label="IIC activity for ${esc(r.title)}">${IICFramework.allOptions(r.iic_activity || "")}</select></div></td><td style="min-width:120px">${benCell(r)}</td><td style="min-width:170px">${IICFramework.policyCell(r)}</td><td>${fileCell(r)}</td>
           <td style="white-space:nowrap">${lateCell(r)}</td><td style="min-width:160px">${r.query ? `<div class="query">${esc(r.query)}</div>` : '<span class="hint">—</span>'}</td><td>${IIC.subPill(r.submission)}</td>
           <td><select class="vsel v-${IIC.verClass(r.verification)}" data-ver="${esc(r.id)}" aria-label="Verification status for ${esc(r.title)}">${opts}</select>${aiCell(r)}</td>
@@ -263,11 +287,12 @@ const THANKS = "Thanks for Submission";
       }).join("") + "</tbody></table>";
   }
   if ($("r_pol")) $("r_pol").innerHTML = IICFramework.policyFilterOptions();
-  ["r_type", "r_dept", "r_q", "r_m", "r_ver", "r_query", "r_late", "r_pol"].forEach(id => $(id).addEventListener("change", renderReports));
+  ["r_type", "r_dept", "r_q", "r_m", "r_ver", "r_query", "r_late", "r_pol", "r_read"].forEach(id => $(id).addEventListener("change", renderReports));
 
   async function patchReport(id, fields, el) {
     const m = $("repMsg"), r = state.reports.find(x => x.id === id); if (!r) return;
     m.className = "msg"; m.textContent = "Saving…";
+    if (isUnread(r) && (fields.verification !== undefined || fields.remarks !== undefined)) fields = { ...fields, seen_at: new Date().toISOString() };
     const { error } = await sb.from("reports").update(fields).eq("id", id);
     if (error) {
       m.className = "msg err"; m.textContent = IIC.friendlyError(error);
@@ -276,6 +301,7 @@ const THANKS = "Thanks for Submission";
       return;
     }
     Object.assign(r, fields);
+    if ("seen_at" in fields) showRead(r);
     m.className = "msg ok"; m.textContent = "Saved: " + r.dept + " · " + IIC.qShort(r.quarter) + " · " + r.title;
     renderSummary();
   }
@@ -467,8 +493,12 @@ const THANKS = "Thanks for Submission";
       if (b.dataset.delReport) deleteReport(b.dataset.delReport); else if (b.dataset.delQuery) deleteQuery(b.dataset.delQuery); else deleteDept(b.dataset.delDept);
       return;
     }
+    const sd = e.target.closest("[data-seen]");
+    if (sd) { const r = state.reports.find(x => x.id === sd.dataset.seen); if (r) setRead(r.id, isUnread(r)); return; }
+    const op = e.target.closest("[data-open]");
+    if (op) setRead(op.dataset.open, true);
     const dl = e.target.closest("[data-dl]");
-    if (dl && !dl.disabled) downloadReport(dl.dataset.dl, dl);
+    if (dl && !dl.disabled) { setRead(dl.dataset.dl, true); downloadReport(dl.dataset.dl, dl); }
   });
 
   /* ---------- summary ---------- */

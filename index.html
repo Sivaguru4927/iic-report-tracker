@@ -48,7 +48,7 @@
 
     <nav role="tablist">
       <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
-      <button role="tab" data-tab="reports" aria-selected="false">All reports</button>
+      <button role="tab" data-tab="reports" aria-selected="false">All reports <span class="badge" id="rBadge" hidden title="Unread reports"></span></button>
       <button role="tab" data-tab="summary" aria-selected="false">Summary</button>
       <button role="tab" data-tab="queries" aria-selected="false">Queries <span class="badge" id="qBadge" hidden></span></button>
       <button role="tab" data-tab="depts" aria-selected="false">Departments &amp; faculty</button>
@@ -121,6 +121,7 @@
           <select id="r_query" aria-label="Filter by query"><option value="">With or without queries</option><option value="yes">Only reports with a query</option></select>
           <select id="r_late" aria-label="Filter by late submission"><option value="">On time &amp; late</option><option value="late">Late submissions only</option><option value="ontime">On time only</option></select>
         <select id="r_pol" aria-label="Filter by NIRF or NISP classification"></select>
+          <select id="r_read" aria-label="Filter by read or unread"><option value="">Read &amp; unread</option><option value="unread">Unread only</option><option value="read">Read only</option></select>
         </div>
         <p class="hint" style="margin:0">Change <b>Verification</b> and <b>Remarks</b> right in the table; each change saves on its own. <b>Type the remarks first, then change the status</b>: the faculty member gets an email with the remarks when the status changes to Verified, Returned for Correction or Rejected.</p>
         <span class="msg" id="repMsg" role="status"></span>
