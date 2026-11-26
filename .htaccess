@@ -1,0 +1,24 @@
+# IIC Report Tracker on Hostinger (Apache). Put this file in public_html together with the site files.
+Options -Indexes
+DirectoryIndex index.html
+
+RewriteEngine On
+# yoursite/submit  ->  submit.html   (the department submission page; same as Netlify's _redirects)
+RewriteRule ^submit/?$ submit.html [L,QSA]
+
+# Word templates download with the right type
+AddType application/vnd.openxmlformats-officedocument.wordprocessingml.document .docx
+
+# Setup files are not part of the website: never serve them if they are uploaded by mistake
+<FilesMatch "\.(sql|md|gs|zip)$">
+  Require all denied
+</FilesMatch>
+
+# Always fetch the latest pages and scripts after an update (no stale copies in browsers)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
