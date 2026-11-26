@@ -254,7 +254,15 @@ const THANKS = "Thanks for Submission";
     const fm = (r.formatted ? '<span class="pill p-ok fmt-pill" title="Formatted to the CII&amp;E report style by the AI formatting agent on upload">Formatted</span>' : "") +
       (r.resubmit_count ? `<span class="pill p-warn fmt-pill" title="Corrected file uploaded${r.resubmitted_at ? " on " + esc(IIC.day(r.resubmitted_at)) : ""}">Corrected${r.resubmit_count > 1 ? " ×" + r.resubmit_count : ""}</span>` : "") +
       (r.verification === "Returned for Correction" && r.edit_token ? `<div><button class="linkbtn" data-fixlink="${esc(r.id)}" title="The link in the department's email: opens this report to upload the corrected file">Copy correction link</button></div>` : "");
-    if (r.drive_url) return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><a class="btn ghost small" href="${esc(r.drive_url)}" target="_blank" rel="noopener" data-open="${esc(r.id)}">Open in Drive</a></div>${fm}`;
+    if (r.drive_url) {
+      // Drive's own preview and download links (not the Google Docs editor, which can't open some Word files and
+      // says "Sorry, unable to open the file"); authuser picks the Google account that matches the coordinator signed in here
+      const id = /^[\w-]{10,}$/.test(r.drive_id || "") ? r.drive_id : (/\/d\/([\w-]{10,})/.exec(r.drive_url) || [])[1];
+      const au = encodeURIComponent(($("who") && $("who").textContent) || "");
+      const view = id ? `https://drive.google.com/file/d/${id}/view?authuser=${au}` : r.drive_url;
+      const down = id ? `https://drive.google.com/uc?export=download&id=${id}&authuser=${au}` : r.drive_url;
+      return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><a class="btn ghost small" href="${esc(view)}" target="_blank" rel="noopener" data-open="${esc(r.id)}">Open</a><a class="btn ghost small" href="${esc(down)}" target="_blank" rel="noopener" data-open="${esc(r.id)}" title="Download the Word file from Google Drive">Download</a></div>${fm}`;
+    }
     if (r.drive_id === "missing") return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><span class="hint">File not found</span></div>`;
     return `<div class="filelink"><span title="${esc(r.file_name)}">${esc(r.file_name)}</span><button class="btn ghost small" data-dl="${esc(r.id)}">Download</button></div>${fm}`;
   }

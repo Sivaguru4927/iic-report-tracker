@@ -70,7 +70,7 @@ tr.grand td{font-weight:700;background:var(--fg);color:var(--bg)}
 .drop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px dashed var(--line);border-radius:8px;padding:12px;background:var(--sunk)}
 .drop.over{border-color:var(--accent);background:var(--accent-soft)}
 .drop input[type=file]{width:auto;max-width:100%;background:var(--surface)}
-.filelink{display:inline-flex;gap:6px;align-items:center;max-width:220px}
+.filelink{display:inline-flex;gap:6px;align-items:center;max-width:320px}
 .filelink span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sharebar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--accent-soft)}
 .sharebar code{font-size:13px;background:var(--surface);padding:1px 5px;border-radius:4px}
