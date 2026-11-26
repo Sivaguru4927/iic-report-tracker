@@ -9,7 +9,7 @@
 html.book-cursor, html.book-cursor * { cursor: none !important; }
 html.book-cursor input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
 html.book-cursor textarea, html.book-cursor [contenteditable="true"] { cursor: text !important; }
-#bookCursor { position: fixed; left: 0; top: 0; width: 22px; height: 22px; margin: -6px 0 0 -11px; pointer-events: none; z-index: 2147483647;
+#bookCursor { position: fixed; left: 0; top: 0; width: 17px; height: 17px; margin: -4px 0 0 -8.5px; pointer-events: none; z-index: 2147483647;
   opacity: 0; transition: opacity .15s; will-change: transform; }
 #bookCursor.on { opacity: 1; }
 #bookCursor .bc-in { width: 100%; height: 100%; transition: transform .15s ease-out; }
